@@ -186,7 +186,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     /**
      * @notice Implement beforeTransfer hook to check if shares are locked.
      */
-    function beforeTransfer(address from) external view {
+    function beforeTransfer(address from, address _to, address _operator) public view virtual {
         if (shareUnlockTime[from] >= block.timestamp) revert TellerWithMultiAssetSupport__SharesAreLocked();
     }
 
