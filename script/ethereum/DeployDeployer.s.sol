@@ -50,7 +50,7 @@ contract DeployDeployerScript is Script, ContractNames, MainnetAddresses {
         creationCode = type(RolesAuthority).creationCode;
         constructorArgs = abi.encode(dev0Address, Authority(address(0)));
         rolesAuthority =
-            RolesAuthority(deployer.deployContract(UsdaiVaultRolesAuthorityName, creationCode, constructorArgs, 0));
+            RolesAuthority(previousRolesAuthority);
 
         deployer.setAuthority(rolesAuthority);
 

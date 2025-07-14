@@ -49,23 +49,23 @@ contract DeployAtomicQueueScript is Script, ContractNames, MainnetAddresses {
         bytes memory constructorArgs;
         vm.startBroadcast(privateKey);
 
-        address deployedAddress = _getAddressIfDeployed(UsdaiBoringOnChainQueuesRolesAuthorityName);
+        address deployedAddress = _getAddressIfDeployed(sUsdaiBoringOnChainQueuesRolesAuthorityName);
         if (deployedAddress == address(0)) {
             creationCode = type(RolesAuthority).creationCode;
             constructorArgs = abi.encode(owner, Authority(address(0)));
             rolesAuthority =
-                RolesAuthority(deployer.deployContract(UsdaiBoringOnChainQueuesRolesAuthorityName, creationCode, constructorArgs, 0));
+                RolesAuthority(deployer.deployContract(sUsdaiBoringOnChainQueuesRolesAuthorityName, creationCode, constructorArgs, 0));
         } else {
-            rolesAuthority = RolesAuthority(deployer.getAddress(UsdaiBoringOnChainQueuesRolesAuthorityName));
+            rolesAuthority = RolesAuthority(deployer.getAddress(sUsdaiBoringOnChainQueuesRolesAuthorityName));
         }
 
         creationCode = type(AtomicQueue).creationCode;
         constructorArgs = abi.encode(owner, rolesAuthority);
-        atomicQueue = AtomicQueue(deployer.deployContract(UsdaiVaultQueueName, creationCode, constructorArgs, 0));
+        atomicQueue = AtomicQueue(deployer.deployContract(sUsdaiVaultQueueName, creationCode, constructorArgs, 0));
 
         creationCode = type(AtomicSolverV4).creationCode;
         constructorArgs = abi.encode(owner, rolesAuthority);
-        atomicSolver = AtomicSolverV4(deployer.deployContract(UsdaiVaultQueueSolverName, creationCode, constructorArgs, 0));
+        atomicSolver = AtomicSolverV4(deployer.deployContract(sUsdaiVaultQueueSolverName, creationCode, constructorArgs, 0));
 
         // set RolesAuthority
 
@@ -84,11 +84,11 @@ contract DeployAtomicQueueScript is Script, ContractNames, MainnetAddresses {
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.updateAtomicRequest.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.solve.selector, true);
 
-        RolesAuthority vaultRolesAuthority = RolesAuthority(previousRolesAuthority);
+        RolesAuthority vaultRolesAuthority = RolesAuthority(previoussSuperUSDRolesAuthority);
         vaultRolesAuthority.setUserRole(address(atomicSolver), 12, true);
-        vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiVaultTellerName), 3, true);
-        vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiLayerZeroTellerName), 3, true);
-        vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiChainlinkCCIPTellerName), 3, true);
+        vaultRolesAuthority.setUserRole(deployer.getAddress(sUsdaiVaultTellerName), 3, true);
+        vaultRolesAuthority.setUserRole(deployer.getAddress(sUsdaiLayerZeroTellerName), 3, true);
+        vaultRolesAuthority.setUserRole(deployer.getAddress(sUsdaiChainlinkCCIPTellerName), 3, true);
 
         vm.stopBroadcast();
     }

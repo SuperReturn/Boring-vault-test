@@ -9,7 +9,7 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {BalancerVault} from "src/interfaces/BalancerVault.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
-import {AccountantWithRateProviders, IRateProvider} from "src/base/Roles/AccountantWithRateProviders.sol";
+import {AccountantWithRateProviders2, IRateProvider} from "src/base/Roles/AccountantWithRateProviders2.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {ContractNames} from "resources/ContractNames.sol";
@@ -24,7 +24,7 @@ import "forge-std/StdJson.sol";
  *  source .env && forge script script/DeployBoringVaultArctic.s.sol:DeployBoringVaultArcticScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
+contract DeployArcticArchitecture2 is Script, ContractNames, MainnetAddresses {
     struct ConfigureDeployment {
         bool deployContracts;
         bool setupRoles;
@@ -96,7 +96,7 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
     RolesAuthority public rolesAuthority;
     address public rawDataDecoderAndSanitizer;
     TellerWithMultiAssetSupport public teller;
-    AccountantWithRateProviders public accountant;
+    AccountantWithRateProviders2 public accountant;
     DelayedWithdraw public delayedWithdrawer;
 
     // Roles
@@ -144,10 +144,14 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
         bytes memory creationCode;
         bytes memory constructorArgs;
 
+        // comment to prevent Stack too deep issue
+        // address roleAuthorityAddress = 0x3340D54fC3ce205B39960cF041D668AF3bdEffb9;
+        // address vaultAddress = 0x874bCD1AfDfb0864F9362b79B61e37b5c1c9d574;
+
         if (configureDeployment.deployContracts) {
             address deployedAddress;
             deployedAddress = _getAddressIfDeployed(names.rolesAuthority);
-            rolesAuthority = RolesAuthority(previoussSuperUSDRolesAuthority);
+            rolesAuthority = RolesAuthority(previousRolesAuthority);
             // if (deployedAddress == address(0)) {
             //     creationCode = type(RolesAuthority).creationCode;
             //     constructorArgs = abi.encode(owner, Authority(address(0)));
@@ -166,7 +170,7 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
             }
 
             deployedAddress = _getAddressIfDeployed(names.boringVault);
-            boringVault = BoringVault(payable(previoussSuperUSDVault));
+            boringVault = BoringVault(payable(previousVault));
             // if (deployedAddress == address(0)) {
             //     creationCode = type(BoringVault).creationCode;
             //     constructorArgs = abi.encode(owner, boringVaultName, boringVaultSymbol, boringVaultDecimals);
@@ -189,7 +193,7 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
 
             deployedAddress = _getAddressIfDeployed(names.accountant);
             if (deployedAddress == address(0)) {
-                creationCode = type(AccountantWithRateProviders).creationCode;
+                creationCode = type(AccountantWithRateProviders2).creationCode;
                 constructorArgs = abi.encode(
                     owner,
                     address(boringVault),
@@ -202,11 +206,11 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
                     accountantParameters.managementFee,
                     accountantParameters.performanceFee
                 );
-                accountant = AccountantWithRateProviders(
+                accountant = AccountantWithRateProviders2(
                     deployer.deployContract(names.accountant, creationCode, constructorArgs, 0)
                 );
             } else {
-                accountant = AccountantWithRateProviders(deployedAddress);
+                accountant = AccountantWithRateProviders2(deployedAddress);
             }
 
             deployedAddress = _getAddressIfDeployed(names.teller);
@@ -247,7 +251,7 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
             lens = ArcticArchitectureLens(_getAddressIfDeployed(names.lens));
             boringVault = BoringVault(payable(_getAddressIfDeployed(names.boringVault)));
             manager = ManagerWithMerkleVerification(_getAddressIfDeployed(names.manager));
-            accountant = AccountantWithRateProviders(_getAddressIfDeployed(names.accountant));
+            accountant = AccountantWithRateProviders2(_getAddressIfDeployed(names.accountant));
             teller = TellerWithMultiAssetSupport(payable(_getAddressIfDeployed(names.teller)));
             rawDataDecoderAndSanitizer = _getAddressIfDeployed(names.rawDataDecoderAndSanitizer);
             delayedWithdrawer = DelayedWithdraw(_getAddressIfDeployed(names.delayedWithdrawer));
@@ -346,20 +350,20 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.resetHighwaterMark.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.resetHighwaterMark.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.resetHighwaterMark.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.resetHighwaterMark.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updatePerformanceFee.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updatePerformanceFee.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updatePerformanceFee.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updatePerformanceFee.selector, true
                 );
             }
             if (!rolesAuthority.doesRoleHaveCapability(OWNER_ROLE, address(accountant), Auth.setAuthority.selector)) {
@@ -372,56 +376,65 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateDelay.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateDelay.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateDelay.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateDelay.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateUpper.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateUpper.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateUpper.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateUpper.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateLower.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateLower.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateLower.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateLower.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateManagementFee.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateManagementFee.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateManagementFee.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateManagementFee.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updatePayoutAddress.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updatePayoutAddress.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updatePayoutAddress.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updatePayoutAddress.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.setRateProviderData.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.setRateProviderData.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.setRateProviderData.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.setRateProviderData.selector, true
+                );
+            }
+            if (
+                !rolesAuthority.doesRoleHaveCapability(
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.setYieldDistributor.selector
+                )
+            ) {
+                rolesAuthority.setRoleCapability(
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.setYieldDistributor.selector, true
                 );
             }
             if (!rolesAuthority.doesRoleHaveCapability(OWNER_ROLE, address(manager), Auth.setAuthority.selector)) {
@@ -520,20 +533,20 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
             // MULTISIG_ROLE
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders.pause.selector
+                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders2.pause.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders.pause.selector, true
+                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders2.pause.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders.unpause.selector
+                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders2.unpause.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders.unpause.selector, true
+                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders2.unpause.selector, true
                 );
             }
             if (
@@ -699,13 +712,13 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
                 !rolesAuthority.doesRoleHaveCapability(
                     UPDATE_EXCHANGE_RATE_ROLE,
                     address(accountant),
-                    AccountantWithRateProviders.updateExchangeRate.selector
+                    AccountantWithRateProviders2.updateExchangeRate.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
                     UPDATE_EXCHANGE_RATE_ROLE,
                     address(accountant),
-                    AccountantWithRateProviders.updateExchangeRate.selector,
+                    AccountantWithRateProviders2.updateExchangeRate.selector,
                     true
                 );
             }
@@ -882,7 +895,7 @@ contract DeployArcticArchitecture is Script, ContractNames, MainnetAddresses {
                 vm.serializeAddress(coreContracts, "Lens", address(lens));
                 vm.serializeAddress(coreContracts, "BoringVault", address(boringVault));
                 vm.serializeAddress(coreContracts, "ManagerWithMerkleVerification", address(manager));
-                vm.serializeAddress(coreContracts, "AccountantWithRateProviders", address(accountant));
+                vm.serializeAddress(coreContracts, "AccountantWithRateProviders2", address(accountant));
                 vm.serializeAddress(coreContracts, "TellerWithMultiAssetSupport", address(teller));
                 vm.serializeAddress(coreContracts, "DecoderAndSanitizer", rawDataDecoderAndSanitizer);
                 coreOutput = vm.serializeAddress(coreContracts, "DelayedWithdraw", address(delayedWithdrawer));
