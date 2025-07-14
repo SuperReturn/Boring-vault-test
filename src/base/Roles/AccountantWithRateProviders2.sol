@@ -9,7 +9,7 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {Auth, Authority} from "@solmate/auth/Auth.sol";
 import {IPausable} from "src/interfaces/IPausable.sol";
 
-contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
+contract AccountantWithRateProviders2 is Auth, IRateProvider, IPausable {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
 
@@ -54,6 +54,16 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
         IRateProvider rateProvider;
     }
 
+    /**
+     * @notice State for the fixed rate accountant.
+     * @param yieldEarnedInBase The yield earned in base.
+     * @param yieldDistributor The address of the yield distributor.
+     */
+    struct FixedRateAccountantState {
+        uint96 yieldEarnedInBase;
+        address yieldDistributor;
+    }
+
     // ========================================= STATE =========================================
 
     /**
@@ -66,6 +76,11 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
      */
     mapping(ERC20 => RateProviderData) public rateProviderData;
 
+    /**
+     * @notice State for the fixed rate accountant.
+     */
+    FixedRateAccountantState public fixedRateAccountantState;
+
     //============================== ERRORS ===============================
 
     error AccountantWithRateProviders__UpperBoundTooSmall();
@@ -77,6 +92,12 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
     error AccountantWithRateProviders__OnlyCallableByBoringVault();
     error AccountantWithRateProviders__UpdateDelayTooLarge();
     error AccountantWithRateProviders__ExchangeRateAboveHighwaterMark();
+
+    error AccountantWithFixedRate__HighWaterMarkCannotChange();
+    error AccountantWithFixedRate__StartingExchangeRateCannotBeGreaterThanFixed();
+    error AccountantWithFixedRate__UnsafeUint96Cast();
+    error AccountantWithFixedRate__OnlyCallableByYieldDistributor();
+    error AccountantWithFixedRate__ZeroYieldOwed();
 
     //============================== EVENTS ===============================
 
@@ -92,6 +113,9 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
     event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime);
     event FeesClaimed(address indexed feeAsset, uint256 amount);
     event HighwaterMarkReset();
+
+    event YieldClaimed(address indexed yieldAsset, uint256 amount);
+    event YieldDistributorUpdated(address indexed yieldDistributor);
 
     //============================== IMMUTABLES ===============================
 
@@ -115,6 +139,11 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
      * @notice One share of the BoringVault.
      */
     uint256 internal immutable ONE_SHARE;
+
+    /**
+     * @notice The fixed exchange rate.
+     */
+    uint96 internal immutable fixedExchangeRate;
 
     constructor(
         address _owner,
@@ -146,6 +175,11 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
             managementFee: managementFee,
             performanceFee: performanceFee
         });
+
+        fixedExchangeRate = uint96(10 ** decimals);
+        if (startingExchangeRate > fixedExchangeRate) {
+            revert AccountantWithFixedRate__StartingExchangeRateCannotBeGreaterThanFixed();
+        }
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
@@ -249,25 +283,41 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
         emit RateProviderUpdated(address(asset), isPeggedToBase, rateProvider);
     }
 
+    // /**
+    //  * @notice Reset the highwater mark to the current exchange rate.
+    //  * @dev Callable by OWNER_ROLE.
+    //  */
+    // function resetHighwaterMark() external requiresAuth {
+    //     AccountantState storage state = accountantState;
+
+    //     if (state.exchangeRate > state.highwaterMark) {
+    //         revert AccountantWithRateProviders__ExchangeRateAboveHighwaterMark();
+    //     }
+
+    //     uint64 currentTime = uint64(block.timestamp);
+    //     uint256 currentTotalShares = vault.totalSupply();
+    //     _calculateFeesOwed(state, state.exchangeRate, state.exchangeRate, currentTotalShares, currentTime);
+    //     state.totalSharesLastUpdate = uint128(currentTotalShares);
+    //     state.highwaterMark = accountantState.exchangeRate;
+    //     state.lastUpdateTimestamp = currentTime;
+
+    //     emit HighwaterMarkReset();
+    // }
+
     /**
-     * @notice Reset the highwater mark to the current exchange rate.
-     * @dev Callable by OWNER_ROLE.
+     * @notice Set the yield distributor.
      */
-    function resetHighwaterMark() external requiresAuth {
-        AccountantState storage state = accountantState;
+    function setYieldDistributor(address yieldDistributor) external requiresAuth {
+        fixedRateAccountantState.yieldDistributor = yieldDistributor;
+        emit YieldDistributorUpdated(yieldDistributor);
+    }
 
-        if (state.exchangeRate > state.highwaterMark) {
-            revert AccountantWithRateProviders__ExchangeRateAboveHighwaterMark();
-        }
-
-        uint64 currentTime = uint64(block.timestamp);
-        uint256 currentTotalShares = vault.totalSupply();
-        _calculateFeesOwed(state, state.exchangeRate, state.exchangeRate, currentTotalShares, currentTime);
-        state.totalSharesLastUpdate = uint128(currentTotalShares);
-        state.highwaterMark = accountantState.exchangeRate;
-        state.lastUpdateTimestamp = currentTime;
-
-        emit HighwaterMarkReset();
+    /**
+     * @notice Reset the highwater mark.
+     * @dev This function is overridden to prevent it from being called.
+     */
+    function resetHighwaterMark() external view requiresAuth {
+        revert AccountantWithFixedRate__HighWaterMarkCannotChange();
     }
 
     // ========================================= UPDATE EXCHANGE RATE/FEES FUNCTIONS =========================================
@@ -340,6 +390,42 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
         emit FeesClaimed(address(feeAsset), feesOwedInFeeAsset);
     }
 
+    /**
+     * @notice Claim yield owed to the yield distributor.
+     * @dev Callable by the yield distributor.
+     */
+    function claimYield(ERC20 yieldAsset) external {
+        FixedRateAccountantState storage frState = fixedRateAccountantState;
+        if (msg.sender != frState.yieldDistributor) revert AccountantWithFixedRate__OnlyCallableByYieldDistributor();
+
+        AccountantState storage state = accountantState;
+        if (state.isPaused) revert AccountantWithRateProviders__Paused();
+        if (frState.yieldEarnedInBase == 0) revert AccountantWithFixedRate__ZeroYieldOwed();
+
+        // Determine amount of yield earned in yieldAsset.
+        uint256 yieldOwedInYieldAsset;
+        RateProviderData memory data = rateProviderData[yieldAsset];
+        if (address(yieldAsset) == address(base)) {
+            yieldOwedInYieldAsset = frState.yieldEarnedInBase;
+        } else {
+            uint8 yieldAssetDecimals = ERC20(yieldAsset).decimals();
+            uint256 feesOwedInBaseUsingYieldAssetDecimals =
+                changeDecimals(frState.yieldEarnedInBase, decimals, yieldAssetDecimals);
+            if (data.isPeggedToBase) {
+                yieldOwedInYieldAsset = feesOwedInBaseUsingYieldAssetDecimals;
+            } else {
+                uint256 rate = data.rateProvider.getRate();
+                yieldOwedInYieldAsset = feesOwedInBaseUsingYieldAssetDecimals.mulDivDown(10 ** yieldAssetDecimals, rate);
+            }
+        }
+        // Zero out yield earned.
+        frState.yieldEarnedInBase = 0;
+        // Transfer fee asset to payout address.
+        yieldAsset.safeTransferFrom(address(vault), frState.yieldDistributor, yieldOwedInYieldAsset);
+
+        emit YieldClaimed(address(yieldAsset), yieldOwedInYieldAsset);
+    }
+
     // ========================================= RATE FUNCTIONS =========================================
 
     /**
@@ -390,6 +476,55 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
         if (accountantState.isPaused) revert AccountantWithRateProviders__Paused();
         rateInQuote = getRateInQuote(quote);
     }
+
+    // ========================================= VIEW FUNCTIONS =========================================
+
+    // /**
+    //  * @notice Preview the result of an update to the exchange rate.
+    //  * @return updateWillPause Whether the update will pause the contract.
+    //  * @return newFeesOwedInBase The new fees owed in base.
+    //  * @return totalFeesOwedInBase The total fees owed in base.
+    //  */
+    // function previewUpdateExchangeRate(uint96 newExchangeRate)
+    //     external
+    //     view
+    //     override
+    //     returns (bool updateWillPause, uint256 newFeesOwedInBase, uint256 totalFeesOwedInBase)
+    // {
+    //     (
+    //         bool shouldPause,
+    //         AccountantState storage state,
+    //         uint64 currentTime,
+    //         uint256 currentExchangeRate,
+    //         uint256 currentTotalShares
+    //     ) = _beforeUpdateExchangeRate(newExchangeRate);
+    //     updateWillPause = shouldPause;
+    //     totalFeesOwedInBase = state.feesOwedInBase;
+    //     if (!shouldPause) {
+    //         if (newExchangeRate > fixedExchangeRate) {
+    //             (uint256 platformFeesOwedInBase, uint256 shareSupplyToUse) = _calculatePlatformFee(
+    //                 state.totalSharesLastUpdate,
+    //                 state.lastUpdateTimestamp,
+    //                 state.platformFee,
+    //                 newExchangeRate,
+    //                 currentExchangeRate,
+    //                 currentTotalShares,
+    //                 currentTime
+    //             );
+
+    //             (uint256 performanceFeesOwedInBase, uint256 yieldEarned) =
+    //                 _calculatePerformanceFee(newExchangeRate, shareSupplyToUse, fixedExchangeRate, state.performanceFee);
+    //             if (yieldEarned < (platformFeesOwedInBase + performanceFeesOwedInBase)) {
+    //                 // This means that the platform fee + performance fee is greater than or equal to the exchange rate appreciation,
+    //                 // so the platform fee is forfeited, but yield and performance fees are still calculated.
+    //                 newFeesOwedInBase = performanceFeesOwedInBase;
+    //             } else {
+    //                 newFeesOwedInBase = platformFeesOwedInBase + performanceFeesOwedInBase;
+    //             }
+    //             totalFeesOwedInBase += newFeesOwedInBase;
+    //         }
+    //     }
+    // }
 
     // ========================================= INTERNAL HELPER FUNCTIONS =========================================
     /**
@@ -461,36 +596,60 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
         uint256 currentTotalShares,
         uint64 currentTime
     ) internal {
-        // Only update fees if we are not paused.
-        // Update fee accounting.
-        uint256 shareSupplyToUse = currentTotalShares;
-        // Use the minimum between current total supply and total supply for last update.
-        if (state.totalSharesLastUpdate < shareSupplyToUse) {
-            shareSupplyToUse = state.totalSharesLastUpdate;
-        }
+        // Only update fees if we are above the fixed rate.
+        if (newExchangeRate > fixedExchangeRate) {
+            // Account for platform fees.
+            (uint256 platformFeesOwedInBase, uint256 shareSupplyToUse) = _calculatePlatformFee(
+                state.totalSharesLastUpdate,
+                state.lastUpdateTimestamp,
+                state.managementFee,
+                newExchangeRate,
+                currentExchangeRate,
+                currentTotalShares,
+                currentTime
+            );
 
-        // Determine management fees owned.
-        uint256 timeDelta = currentTime - state.lastUpdateTimestamp;
-        uint256 minimumAssets = newExchangeRate > currentExchangeRate
-            ? shareSupplyToUse.mulDivDown(currentExchangeRate, ONE_SHARE)
-            : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
-        uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
-        uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
+            // Account for performance fees.
+            (uint256 performanceFeesOwedInBase, uint256 yieldEarned) =
+                _calculatePerformanceFee(newExchangeRate, shareSupplyToUse, fixedExchangeRate, state.performanceFee);
 
-        // Account for performance fees.
-        if (newExchangeRate > state.highwaterMark) {
-            if (state.performanceFee > 0) {
-                uint256 changeInExchangeRate = newExchangeRate - state.highwaterMark;
-                uint256 yieldEarned = changeInExchangeRate.mulDivDown(shareSupplyToUse, ONE_SHARE);
-                uint256 performanceFeesOwedInBase = yieldEarned.mulDivDown(state.performanceFee, 1e4);
-                newFeesOwedInBase += performanceFeesOwedInBase;
+            uint256 feesOwedInBase;
+            if (yieldEarned < (platformFeesOwedInBase + performanceFeesOwedInBase)) {
+                // This means that the platform fee + performance fee is greater than or equal to the exchange rate appreciation,
+                // so the platform fee is forfeited, but yield and performance fees are still calculated.
+                feesOwedInBase = performanceFeesOwedInBase;
+            } else {
+                feesOwedInBase = platformFeesOwedInBase + performanceFeesOwedInBase;
             }
-            // Always update the highwater mark if the new exchange rate is higher.
-            // This way if we are not iniitiall taking performance fees, we can start taking them
-            // without back charging them on past performance.
-            state.highwaterMark = newExchangeRate;
-        }
+            // Since performance fees are a percentage of yield earned, we know this will never underflow.
+            yieldEarned -= feesOwedInBase;
 
-        state.feesOwedInBase += uint128(newFeesOwedInBase);
+            // We intentionally do not update highwater mark since this is a fixed rate accountant.
+            // state.highwaterMark = newExchangeRate;
+
+            // Add yield earned to fixed rate accountant state.
+            if (yieldEarned > type(uint96).max) {
+                revert AccountantWithFixedRate__UnsafeUint96Cast();
+            }
+            fixedRateAccountantState.yieldEarnedInBase += uint96(yieldEarned);
+            state.feesOwedInBase += uint128(feesOwedInBase);
+        }
+    }
+
+    /**
+     * @notice Override set exchange rate logic to ensure it never exceeds the fixed rate,
+     *         but it is allowed to be less than or equal to the fixed rate.
+     */
+    function _setExchangeRate(uint96 newExchangeRate, AccountantState storage state)
+        internal
+        returns (uint96)
+    {
+        if (newExchangeRate < fixedExchangeRate) {
+            state.exchangeRate = newExchangeRate;
+        } else {
+            state.exchangeRate = fixedExchangeRate;
+            newExchangeRate = fixedExchangeRate;
+        }
+        return newExchangeRate;
     }
 }
