@@ -54,7 +54,7 @@ contract USDAIDepositScript is Script, MainnetAddresses, ContractNames, MerkleTr
         vm.startBroadcast(privateKey);
         
         // Deposit USDC
-        if (USDT.balanceOf(user) >= USDC_DEPOSIT_AMOUNT) {
+        if (USDC.balanceOf(user) >= USDC_DEPOSIT_AMOUNT) {
             console.log("\n=== Depositing USDC ===");
             
             // Calculate expected shares
@@ -70,7 +70,7 @@ contract USDAIDepositScript is Script, MainnetAddresses, ContractNames, MerkleTr
             // console.log("USDC allowance before approval:", USDC.allowance(user, address(teller)));
             
             // Approve USDC for deposit
-            USDT.approve(address(vault), USDC_DEPOSIT_AMOUNT);
+            USDC.approve(address(vault), USDC_DEPOSIT_AMOUNT);
             console.log("USDC approved for deposit");
             
             // // Log allowance after approval
@@ -78,7 +78,7 @@ contract USDAIDepositScript is Script, MainnetAddresses, ContractNames, MerkleTr
             
             // // Deposit USDC
             uint256 sharesBefore = vault.balanceOf(user);
-            teller.deposit(USDT, USDC_DEPOSIT_AMOUNT, 0);
+            teller.deposit(USDC, USDC_DEPOSIT_AMOUNT, 0);
             uint256 sharesAfter = vault.balanceOf(user);
             
             console.log("Actual shares received:", (sharesAfter - sharesBefore) / 1e6);

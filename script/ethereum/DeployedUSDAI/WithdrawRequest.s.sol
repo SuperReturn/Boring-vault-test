@@ -73,17 +73,12 @@ contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
             });
 
             // Send request to queue
-            queue.updateAtomicRequest(vault, USDT, request);
+            queue.updateAtomicRequest(vault, USDC, request);
 
             console.log("Withdrawal request created");
 
             // Get the request details
-            AtomicQueue.AtomicRequest memory userRequest = queue.getUserAtomicRequest(user, vault, USDT);
-            console.log("\n=== Withdraw Request Details ===");
-            console.log("Deadline:", userRequest.deadline);
-            console.log("Atomic Price:", uint256(userRequest.atomicPrice) / 1e6);
-            console.log("Offer Amount (shares):", uint256(userRequest.offerAmount) / 1e6);
-            console.log("In Solve:", userRequest.inSolve);
+            AtomicQueue.AtomicRequest memory userRequest = queue.getUserAtomicRequest(user, vault, USDC);
 
         } else {
             console.log("No shares available for withdrawal");

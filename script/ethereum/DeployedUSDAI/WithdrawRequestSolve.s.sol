@@ -39,7 +39,7 @@ contract SolveWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
         vm.startBroadcast(privateKey);
         
         address user = vm.addr(privateKey);
-        AtomicQueue.AtomicRequest memory request = queue.getUserAtomicRequest(user, vault, USDT);
+        AtomicQueue.AtomicRequest memory request = queue.getUserAtomicRequest(user, vault, USDC);
         
         // Calculate required assets based on atomic price
         uint256 assetsRequired = (uint256(request.offerAmount) * uint256(request.atomicPrice)) / 1e6;
@@ -53,13 +53,13 @@ contract SolveWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
         uint256 maxAssets = assetsRequired; // Maximum assets we're willing to spend
         
         // Make sure solver has enough USDC approved
-        USDT.approve(address(solver), maxAssets);
+        USDC.approve(address(solver), maxAssets);
         
         // Call redeemSolve
         solver.redeemSolve(
             queue,
             ERC20(address(vault)), // offer (vault shares)
-            USDT, // want (USDC)
+            USDC, // want (USDC)
             users,
             minAssetDelta,
             maxAssets,
