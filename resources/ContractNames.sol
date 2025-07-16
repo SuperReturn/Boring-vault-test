@@ -13,8 +13,8 @@ contract ContractNames {
     string public constant UsdaiVaultTellerName = "ccc SuperUSD Vault Teller With Multi Asset Support V0.0";
     string public constant UsdaiVaultDecoderAndSanitizerName = "ccc SuperUSD Vault Decoder and Sanitizer V0.0";
     string public constant UsdaiVaultDelayedWithdrawer = "ccc SuperUSD Vault Delayed Withdrawer V0.0";
-    string public constant UsdaiVaultQueueName = "ccc SuperUSD Vault Queue V0.0";
-    string public constant UsdaiVaultQueueSolverName = "ccc SuperUSD Vault Queue Solver V0.0";
+    string public constant UsdaiVaultQueueName = "ccc SuperUSD Vault Queue V0.1";
+    string public constant UsdaiVaultQueueSolverName = "ccc SuperUSD Vault Queue Solver V0.1";
     string public constant UsdaiLayerZeroTellerName = "ccc SuperUSD LayerZero Teller V0.0";
     string public constant UsdaiChainlinkCCIPTellerName = "ccc SuperUSD Chainlink CCIP Teller V0.0";
     string public constant UsdaiAcrossDecoderAndSanitizerName = "ccc SuperUSD Across Decoder and Sanitizer V0.0";
@@ -36,8 +36,8 @@ contract ContractNames {
     string public constant sUsdaiVaultTellerName = "ccc sSuperUSD Vault Teller With Multi Asset Support V0.0";
     string public constant sUsdaiVaultDecoderAndSanitizerName = "ccc sSuperUSD Vault Decoder and Sanitizer V0.0";
     string public constant sUsdaiVaultDelayedWithdrawer = "ccc sSuperUSD Vault Delayed Withdrawer V0.0";
-    string public constant sUsdaiVaultQueueName = "ccc sSuperUSD Vault Queue V0.0";
-    string public constant sUsdaiVaultQueueSolverName = "ccc sSuperUSD Vault Queue Solver V0.0";
+    string public constant sUsdaiVaultQueueName = "ccc sSuperUSD Vault Queue V0.1";
+    string public constant sUsdaiVaultQueueSolverName = "ccc sSuperUSD Vault Queue Solver V0.1";
     string public constant sUsdaiLayerZeroTellerName = "ccc sSuperUSD LayerZero Teller V0.0";
     string public constant sUsdaiChainlinkCCIPTellerName = "ccc sSuperUSD Chainlink CCIP Teller V0.0";
     string public constant sUsdaiBaseDecoderAndSanitizerName = "ccc sSuperUSD Base Decoder and Sanitizer V0.0";

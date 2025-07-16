@@ -68,6 +68,8 @@ contract AtomicQueue is ReentrancyGuard {
      */
     mapping(address => mapping(ERC20 => mapping(ERC20 => AtomicRequest))) public userAtomicRequest;
 
+    mapping(ERC20 => uint256) public withdrawInProgressAmount;
+
     //============================== ERRORS ===============================
 
     error AtomicQueue__UserRepeated(address user);
@@ -114,6 +116,10 @@ contract AtomicQueue is ReentrancyGuard {
         return userAtomicRequest[user][offer][want];
     }
 
+    function getTotalWithdrawInProgressAmount(address offer) external view returns (uint256) {
+        return withdrawInProgressAmount[ERC20(offer)];
+    }
+
     /**
      * @notice Helper function that returns either
      *         true: Withdraw request is valid.
@@ -156,6 +162,13 @@ contract AtomicQueue is ReentrancyGuard {
      */
     function updateAtomicRequest(ERC20 offer, ERC20 want, AtomicRequest calldata userRequest) external nonReentrant {
         AtomicRequest storage request = userAtomicRequest[msg.sender][offer][want];
+
+        // If there's an existing request, subtract it from the total first
+        if(request.offerAmount > 0) {
+            withdrawInProgressAmount[offer] -= request.offerAmount;
+        }
+
+        withdrawInProgressAmount[offer] += userRequest.offerAmount;
 
         request.deadline = userRequest.deadline;
         request.atomicPrice = userRequest.atomicPrice;
@@ -225,6 +238,8 @@ contract AtomicQueue is ReentrancyGuard {
                 uint256 assetsToUser = _calculateAssetAmount(request.offerAmount, request.atomicPrice, offerDecimals);
 
                 want.safeTransferFrom(solver, users[i], assetsToUser);
+
+                withdrawInProgressAmount[offer] -= request.offerAmount;
 
                 emit AtomicRequestFulfilled(
                     users[i], address(offer), address(want), request.offerAmount, assetsToUser, block.timestamp

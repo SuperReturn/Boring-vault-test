@@ -65,6 +65,16 @@ contract SolveWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
             maxAssets,
             teller
         );
+
+        // solver.redeemSelfSolve(
+        //     queue,
+        //     ERC20(address(vault)), // offer (vault shares)
+        //     USDC, // want (USDC)
+        //     user,
+        //     minAssetDelta,
+        //     maxAssets,
+        //     teller
+        // );
         
         vm.stopBroadcast();
         

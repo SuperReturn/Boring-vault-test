@@ -46,6 +46,7 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
     error AtomicSolverV4___P2PSolveMinSharesNotMet(uint256 actualShares, uint256 minShares);
     error AtomicSolverV4___BoringVaultTellerMismatch(address vault, address teller);
     error AtomicSolverV4___NoBoringVaultSharesReceived();
+    error AtomicSolverV4___OnlySelf();
 
     //============================== IMMUTABLES ===============================
 
@@ -100,6 +101,27 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
         bytes memory runData = abi.encode(SolveType.REDEEM, msg.sender, minimumAssetsOut, maxAssets, teller);
 
         // Solve for `users`.
+        queue.solve(offer, want, users, runData, address(this));
+    }
+
+    /**
+     * @notice Allows a user to solve their own request to redeem Boring Vault shares and mint new Boring Vault shares.
+     * @dev `offer` MUST be an ERC4626 vault.
+     */
+    function redeemSelfSolve(
+        AtomicQueue queue,
+        ERC20 offer,
+        ERC20 want,
+        address user,
+        uint256 minimumAssetsOut,
+        uint256 maxAssets,
+        TellerWithMultiAssetSupport teller
+    ) external requiresAuth {
+        if (user != msg.sender) revert AtomicSolverV4___OnlySelf();
+        bytes memory runData = abi.encode(SolveType.REDEEM, msg.sender, minimumAssetsOut, maxAssets, teller);
+
+        address[] memory users = new address[](1);
+        users[0] = user;
         queue.solve(offer, want, users, runData, address(this));
     }
 
