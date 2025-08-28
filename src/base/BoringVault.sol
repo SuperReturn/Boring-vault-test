@@ -9,8 +9,14 @@ import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {BeforeTransferHook} from "src/interfaces/BeforeTransferHook.sol";
 import {Auth, Authority} from "@solmate/auth/Auth.sol";
+import {ERC20Upgradeable} from "@openzeppelin-contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import {IERC7802} from "src/interfaces/IERC7802.sol";
 
-contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
+contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, ERC721Holder, ERC1155Holder, IERC7802 {
     using Address for address;
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -22,16 +28,42 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
      */
     BeforeTransferHook public hook;
 
+    uint8 private _decimals;
+
+    uint256 public maxTotalSupply = 10_000_000;
+
     //============================== EVENTS ===============================
 
     event Enter(address indexed from, address indexed asset, uint256 amount, address indexed to, uint256 shares);
     event Exit(address indexed to, address indexed asset, uint256 amount, address indexed from, uint256 shares);
 
-    //============================== CONSTRUCTOR ===============================
+    //============================== ERRORS ===============================
+    error NotSuperchainERC20Bridge();
 
-    constructor(address _owner, string memory _name, string memory _symbol, uint8 _decimals)
-        ERC20(_name, _symbol, _decimals)
-        Auth(_owner, Authority(address(0)))
+    //============================== CONSTRUCTOR ===============================
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() Auth(address(0), Authority(address(0))) {
+        _disableInitializers();
+    }
+
+    function initialize(
+        address _owner,
+        Authority _authority,
+        string memory _name,
+        string memory _symbol,
+        uint8 decimals_
+    ) public initializer {
+        __ERC20_init(_name, _symbol);
+        __UUPSUpgradeable_init();
+        owner = _owner;
+        authority = _authority;
+        _decimals = decimals_;
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        requiresAuth
     {}
 
     //============================== MANAGE ===============================
@@ -75,6 +107,9 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
         external
         requiresAuth
     {
+        // Check if total supply would exceed max
+        require(totalSupply() + shareAmount <= maxTotalSupply, "Exceeds max total supply");
+
         // Transfer assets in
         if (assetAmount > 0) asset.safeTransferFrom(from, address(this), assetAmount);
 
@@ -131,7 +166,49 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
         return super.transferFrom(from, to, amount);
     }
 
+    //============================== SuperChainERC20 ===============================
+
+    /// @notice Allows the SuperchainTokenBridge to mint tokens.
+    /// @param _to Address to mint tokens to.
+    /// @param _amount Amount of tokens to mint.
+    function crosschainMint(address _to, uint256 _amount) external {
+        if (msg.sender != 0x4200000000000000000000000000000000000028) revert NotSuperchainERC20Bridge();
+ 
+        _mint(_to, _amount);
+ 
+        emit CrosschainMint(_to, _amount, msg.sender);
+    }
+ 
+    /// @notice Allows the SuperchainTokenBridge to burn tokens.
+    /// @param _from Address to burn tokens from.
+    /// @param _amount Amount of tokens to burn.
+    function crosschainBurn(address _from, uint256 _amount) external {
+        if (msg.sender != 0x4200000000000000000000000000000000000028) revert NotSuperchainERC20Bridge();
+        
+        _burn(_from, _amount);
+ 
+        emit CrosschainBurn(_from, _amount, msg.sender);
+    }
+
+    /// @inheritdoc IERC165
+    function supportsInterface(bytes4 _interfaceId) public view virtual override (ERC1155Holder, IERC165)returns (bool) {
+        return _interfaceId == type(IERC7802).interfaceId || _interfaceId == type(IERC20).interfaceId
+            || _interfaceId == type(IERC165).interfaceId || super.supportsInterface(_interfaceId);
+    }
+
     //============================== RECEIVE ===============================
 
     receive() external payable {}
+
+    function decimals() public view override returns (uint8) {
+        return _decimals;
+    }
+
+    /**
+     * @notice Sets the maximum total supply of shares.
+     * @dev Callable by authorized roles.
+     */
+    function setMaxTotalSupply(uint256 _maxTotalSupply) external requiresAuth {
+        maxTotalSupply = _maxTotalSupply;
+    }
 }
