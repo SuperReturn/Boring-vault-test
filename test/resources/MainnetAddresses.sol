@@ -4,10 +4,23 @@ pragma solidity 0.8.21;
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 
 contract MainnetAddresses {
-    // Liquid Ecosystem
-    address public deployerAddress = 0x5F2F11ad8656439d5C14d9B351f8b09cDaC2A02d;
-    address public dev0Address = 0x0463E60C7cE10e57911AB7bD1667eaa21de3e79b;
-    address public dev1Address = 0x2322ba43eFF1542b6A7bAeD35e66099Ea0d12Bd1;
+    address public deployerAddress = 0x8E74f230a4E22adcD045EA9e482cAEe37BBE360c;
+    address public dev0Address = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
+    address public dev1Address = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
+
+    address public liquidPayoutAddress = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
+
+    address public ccipRouter = 0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59;
+
+    address public previousRolesAuthority = 0x3340D54fC3ce205B39960cF041D668AF3bdEffb9;
+    address public previousVault = 0x874bCD1AfDfb0864F9362b79B61e37b5c1c9d574;
+    address public previoussSuperUSDRolesAuthority = 0xe1D6063800965A7E812D5E12dE90155Ecb362E29;
+    address public previoussSuperUSDVault = 0x59E86808d54e3B8Af2F8FFAfE6f51Bc62B4b29C7;
+
+    ERC20 public USDC = ERC20(0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238);
+    ERC20 public USDT = ERC20(0x7069C635d6fCd1C3D0cd9b563CDC6373e06052ee);
+    ERC20 public USDAI = ERC20(0x874bCD1AfDfb0864F9362b79B61e37b5c1c9d574);
+    ERC20 public WETH = ERC20(0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14);
 
     // DeFi Ecosystem
     address public ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -15,10 +28,10 @@ contract MainnetAddresses {
     address public uniV2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
     // ERC20s
-    ERC20 public USDC = ERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-    ERC20 public WETH = ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    // ERC20 public USDC = ERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    // ERC20 public WETH = ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     ERC20 public WBTC = ERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
-    ERC20 public USDT = ERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
+    // ERC20 public USDT = ERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
     ERC20 public TUSD = ERC20(0x0000000000085d4780B73119b644AE5ecd22b376);
     ERC20 public DAI = ERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
     ERC20 public WSTETH = ERC20(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);

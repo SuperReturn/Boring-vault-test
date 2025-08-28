@@ -11,6 +11,10 @@ import {BeforeTransferHook} from "src/interfaces/BeforeTransferHook.sol";
 import {Auth, Authority} from "@solmate/auth/Auth.sol";
 import {ReentrancyGuard} from "@solmate/utils/ReentrancyGuard.sol";
 
+interface IStakingVaultTeller {
+    function deposit(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint) external payable returns (uint256 shares);
+}
+
 contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuard {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
@@ -22,6 +26,11 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      * @notice Native address used to tell the contract to handle native asset deposits.
      */
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    /**
+     * @notice The staking vault teller address.
+     */
+    address internal stakingVaultTeller = address(0);
 
     /**
      * @notice The maximum possible share lock period.
@@ -77,6 +86,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     error TellerWithMultiAssetSupport__ZeroShares();
     error TellerWithMultiAssetSupport__DualDeposit();
     error TellerWithMultiAssetSupport__Paused();
+    error TellerWithMultiAssetSupport__StakingVaultTellerNotSet();
 
     //============================== EVENTS ===============================
 
@@ -96,7 +106,8 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     event BulkDeposit(address indexed asset, uint256 depositAmount);
     event BulkWithdraw(address indexed asset, uint256 shareAmount);
     event DepositRefunded(uint256 indexed nonce, bytes32 depositHash, address indexed user);
-
+    event StakingVaultTellerSet(address indexed stakingVaultTeller);
+    event DepositAndStake(address indexed user, address indexed depositAsset, uint256 depositAmount, uint256 shares);
     //============================== IMMUTABLES ===============================
 
     /**
@@ -129,6 +140,11 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
+
+    function setStakingVaultTeller(address _stakingVaultTeller) external requiresAuth {
+        stakingVaultTeller = _stakingVaultTeller;
+        emit StakingVaultTellerSet(_stakingVaultTeller);
+    }
 
     /**
      * @notice Pause this contract, which prevents future calls to `deposit` and `depositWithPermit`.
@@ -186,7 +202,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     /**
      * @notice Implement beforeTransfer hook to check if shares are locked.
      */
-    function beforeTransfer(address from) external view {
+    function beforeTransfer(address from, address, address) public view virtual {
         if (shareUnlockTime[from] >= block.timestamp) revert TellerWithMultiAssetSupport__SharesAreLocked();
     }
 
@@ -325,6 +341,36 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         if (assetsOut < minimumAssets) revert TellerWithMultiAssetSupport__MinimumAssetsNotMet();
         vault.exit(to, withdrawAsset, assetsOut, msg.sender, shareAmount);
         emit BulkWithdraw(address(withdrawAsset), shareAmount);
+    }
+
+    /**
+     * @notice Allows users to deposit into the BoringVault and stake in the staking vault teller.
+     * @dev Publicly callable.
+     */
+    function depositAndStake(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint)
+        external
+        payable
+        requiresAuth
+        nonReentrant
+        returns (uint256 shares)
+    {
+        if (isPaused) revert TellerWithMultiAssetSupport__Paused();
+
+        if (msg.value > 0) revert TellerWithMultiAssetSupport__DualDeposit();
+        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
+
+        _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
+
+        // Call staking vault teller to stake
+        if (stakingVaultTeller == address(0)) {
+            revert TellerWithMultiAssetSupport__StakingVaultTellerNotSet();
+        }
+        uint256 stakedShares = IStakingVaultTeller(stakingVaultTeller).deposit(ERC20(address(vault)), shares, 0);
+
+        // transfer staked shares to user
+        ERC20(stakingVaultTeller).safeTransfer(msg.sender, stakedShares);
+
+        emit DepositAndStake(msg.sender, address(depositAsset), depositAmount, shares);
     }
 
     // ========================================= INTERNAL HELPER FUNCTIONS =========================================
