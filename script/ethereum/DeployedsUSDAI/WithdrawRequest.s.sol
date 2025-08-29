@@ -73,7 +73,7 @@ contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
             });
 
             // Send request to queue
-            queue.updateAtomicRequest(boringVault, USDAI, request);
+            queue.updateAtomicRequest(ERC20(address(boringVault)), USDAI, request);
 
             console.log("Withdrawal request created");
 

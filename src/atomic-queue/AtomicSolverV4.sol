@@ -267,7 +267,7 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
             revert AtomicSolverV4___SolveMaxAssetsExceeded(wantApprovalAmount, maxAssets);
         }
 
-        ERC20 boringVaultShare = ERC20(teller.vault());
+        ERC20 boringVaultShare = ERC20(address(teller.vault()));
 
         // Offer is Cellar share, so redeem it to get BoringVault shares.
         uint256 bvShareDelta = boringVaultShare.balanceOf(address(this));
