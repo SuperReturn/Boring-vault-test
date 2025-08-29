@@ -49,7 +49,14 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         uint256 blockNumber = 19369928;
         _startFork(rpcKey, blockNumber);
 
-        boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
+        boringVault = new BoringVault();
+        boringVault.initialize(
+            address(this),  // owner
+            Authority(address(0)),  // authority
+            "Boring Vault", // name
+            "BV",  // symbol
+            18  // decimals
+        );
 
         manager = new ManagerWithMerkleVerification(address(this), address(boringVault), vault);
 

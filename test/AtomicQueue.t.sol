@@ -86,7 +86,14 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
     function setUp() external {
         USDC = new MockUSDC();
         
-        boringVault = new BoringVault(address(this), "Boring Vault", "BV", 6);
+        boringVault = new BoringVault();
+        boringVault.initialize(
+            address(this),  // owner
+            Authority(address(0)),  // authority
+            "Boring Vault", // name
+            "BV",  // symbol
+            6  // decimals
+        );
 
         accountant = new AccountantWithRateProviders(
             address(this), 
@@ -161,7 +168,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         });
 
         // Create request 1
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req1);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req1);
 
         // 10 blocks later
         vm.warp(block.timestamp + 10);
@@ -175,7 +182,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         });
 
         // Create request 2
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req2);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req2);
 
         // 10 blocks later
         vm.warp(block.timestamp + 10);
@@ -189,7 +196,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         });
 
         // Create request 3
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req3);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req3);
 
         // Get both requestIds and requests
         (bytes32[] memory requestIds, AtomicRequest[] memory requests) = atomicQueue.getWithdrawRequests();
@@ -216,7 +223,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             atomicPrice: uint88(1e6), // Changed to USDC decimals
             offerAmount: uint96(1_000e6) // Changed to USDC amount
         });
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
 
         bytes32 requestId = keccak256(abi.encode(
             user,
@@ -244,11 +251,11 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         });
         
         // Verify initial amount is 0
-        assertEq(atomicQueue.withdrawInProgressAmount(boringVault), 0);
+        assertEq(atomicQueue.withdrawInProgressAmount(ERC20(address(boringVault))), 0);
         
         // Update request and verify amount increased
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req);
-        assertEq(atomicQueue.withdrawInProgressAmount(boringVault), 1_000e6);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
+        assertEq(atomicQueue.withdrawInProgressAmount(ERC20(address(boringVault))), 1_000e6);
         
         vm.stopPrank();
     }
@@ -269,7 +276,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             atomicPrice: uint88(1e6),
             offerAmount: uint96(1_000e6)
         });
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req1);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req1);
         
         vm.warp(block.timestamp + 10);
         
@@ -279,7 +286,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             atomicPrice: uint88(1e6),
             offerAmount: uint96(2_000e6)
         });
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req2);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req2);
         
         // Verify both requests are stored correctly
         (bytes32[] memory requestIds, AtomicRequest[] memory requests) = atomicQueue.getWithdrawRequests();
@@ -311,7 +318,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             block.timestamp
         );
         
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
         
         // Verify request was stored
         bytes32 requestId = keccak256(abi.encode(
@@ -340,7 +347,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             offerAmount: uint96(1_000e6)
         });
         
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
         
         // Verify request exists
         (bytes32[] memory requestIdsBefore,) = atomicQueue.getWithdrawRequests();
@@ -358,7 +365,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             block.timestamp
         );
         
-        atomicQueue.cancelAtomicRequest(boringVault, USDC, req);
+        atomicQueue.cancelAtomicRequest(ERC20(address(boringVault)), USDC, req);
         
         // Verify request was removed
         (bytes32[] memory requestIdsAfter,) = atomicQueue.getWithdrawRequests();
@@ -377,7 +384,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             offerAmount: uint96(1_000e6)
         });
         
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
 
         // Verify request was added
         (bytes32[] memory requestIds,) = atomicQueue.getWithdrawRequests();
@@ -406,7 +413,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         
         atomicSolverV4.redeemSelfSolve(
             atomicQueue,
-            boringVault,
+            ERC20(address(boringVault)),
             USDC,
             user,
             0,
@@ -437,7 +444,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             offerAmount: uint96(1_000e6)
         });
         
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
         
         // Move time past maturity time and deadline
         vm.warp(block.timestamp + atomicQueue.MATURITY_TIME() + 2);
@@ -448,7 +455,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         
         // Expect revert on solve
         vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__RequestDeadlineExceeded.selector, user));
-        atomicQueue.solve(boringVault, USDC, users, "", address(atomicSolverV4), req);
+        atomicQueue.solve(ERC20(address(boringVault)), USDC, users, "", address(atomicSolverV4), req);
         
         vm.stopPrank();
     }
@@ -464,7 +471,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             offerAmount: 0
         });
         
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
         
         // Move time past maturity time
         vm.warp(block.timestamp + atomicQueue.MATURITY_TIME() + 1);
@@ -475,7 +482,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         
         // Expect revert on solve
         vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__ZeroOfferAmount.selector, user));
-        atomicQueue.solve(boringVault, USDC, users, "", address(atomicSolverV4), req);
+        atomicQueue.solve(ERC20(address(boringVault)), USDC, users, "", address(atomicSolverV4), req);
         
         vm.stopPrank();
     }
@@ -491,7 +498,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             offerAmount: uint96(1_000e6)
         });
         
-        atomicQueue.updateAtomicRequest(boringVault, USDC, req);
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
         
         // Try to solve before maturity time
         address[] memory users = new address[](1);
@@ -499,7 +506,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         
         // Should revert because maturity time hasn't passed
         vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__RequestNotMature.selector, user));
-        atomicQueue.solve(boringVault, USDC, users, "", address(atomicSolverV4), req);
+        atomicQueue.solve(ERC20(address(boringVault)), USDC, users, "", address(atomicSolverV4), req);
         
         // Warp past maturity time
         vm.warp(block.timestamp + atomicQueue.MATURITY_TIME() + 1);
@@ -510,7 +517,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         
         atomicSolverV4.redeemSelfSolve(
             atomicQueue,
-            boringVault,
+            ERC20(address(boringVault)),
             USDC,
             user,
             0,

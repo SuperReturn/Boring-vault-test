@@ -60,7 +60,14 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         // uint256 blockNumber = 19363419;
         // _startFork(rpcKey, blockNumber);
 
-        boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
+        boringVault = new BoringVault();
+        boringVault.initialize(
+            address(this),  // owner
+            Authority(address(0)),  // authority
+            "Boring Vault", // name
+            "BV",  // symbol
+            18  // decimals
+        );
 
         accountant = new AccountantWithRateProviders(
             address(this), address(boringVault), payout_address, 1e6, address(USDC), 1.001e4, 0.999e4, 1 days / 4, 0, 0
