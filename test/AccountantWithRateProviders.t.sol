@@ -11,6 +11,8 @@ import {IRateProvider} from "src/interfaces/IRateProvider.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
 
 import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
+import {Deployer} from "src/helper/Deployer.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
     using SafeTransferLib for ERC20;
@@ -33,8 +35,41 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
         uint256 blockNumber = 19363419;
         _startFork(rpcKey, blockNumber);
 
-        boringVault = new BoringVault();
-        boringVault.initialize(address(this), Authority(address(0)), "Boring Vault", "BV", 18);
+
+        Deployer deployer = new Deployer(address(this), Authority(address(0)));
+
+        // Deploy implementation
+        address implementation = deployer.deployContract(
+            "BoringVault-Implementation",
+            type(BoringVault).creationCode,
+            hex"",
+            0
+        );
+
+        // Prepare initializer data
+        bytes memory initializer = abi.encodeWithSelector(
+            BoringVault.initialize.selector,
+            address(this),  // owner
+            Authority(address(0)),  // authority
+            "Boring Vault", // name
+            "BV",  // symbol
+            18  // decimals
+        );
+
+        // Deploy proxy
+        bytes memory proxyCreationCode = abi.encodePacked(
+            type(ERC1967Proxy).creationCode,
+            abi.encode(implementation, initializer)
+        );
+        address proxy = deployer.deployContract(
+            "BoringVault",
+            proxyCreationCode,
+            hex"",
+            0
+        );
+
+        boringVault = BoringVault(payable(proxy));
+        boringVault.setMaxTotalSupply(1000000000000000000000000000000000000000);
 
         accountant = new AccountantWithRateProviders(
             address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0,0
@@ -125,7 +160,7 @@ contract AccountantWithRateProvidersTest is Test, MainnetAddresses {
 
     function testUpdateLower() external {
         accountant.updateLower(0.998e4);
-        (,,,,, uint16 lower_bound,,,,,,) = accountant.accountantState();
+        (,,,,,,uint16 lower_bound,,,,,) = accountant.accountantState();
 
         assertEq(lower_bound, 0.998e4, "Lower bound should be 0.9980e4");
     }

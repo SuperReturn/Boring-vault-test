@@ -22,6 +22,8 @@ import {DecoderCustomTypes} from "src/interfaces/DecoderCustomTypes.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
 
 import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
+import {Deployer} from "src/helper/Deployer.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
     using SafeTransferLib for ERC20;
@@ -49,14 +51,40 @@ contract ManagerWithMerkleVerificationTest is Test, MainnetAddresses {
         uint256 blockNumber = 19369928;
         _startFork(rpcKey, blockNumber);
 
-        boringVault = new BoringVault();
-        boringVault.initialize(
+        Deployer deployer = new Deployer(address(this), Authority(address(0)));
+
+        // Deploy implementation
+        address implementation = deployer.deployContract(
+            "BoringVault-Implementation",
+            type(BoringVault).creationCode,
+            hex"",
+            0
+        );
+
+        // Prepare initializer data
+        bytes memory initializer = abi.encodeWithSelector(
+            BoringVault.initialize.selector,
             address(this),  // owner
             Authority(address(0)),  // authority
             "Boring Vault", // name
             "BV",  // symbol
-            18  // decimals
+            6  // decimals
         );
+
+        // Deploy proxy
+        bytes memory proxyCreationCode = abi.encodePacked(
+            type(ERC1967Proxy).creationCode,
+            abi.encode(implementation, initializer)
+        );
+        address proxy = deployer.deployContract(
+            "BoringVault",
+            proxyCreationCode,
+            hex"",
+            0
+        );
+
+        boringVault = BoringVault(payable(proxy));
+        boringVault.setMaxTotalSupply(1000000000000000000000000000000000000000);
 
         manager = new ManagerWithMerkleVerification(address(this), address(boringVault), vault);
 
