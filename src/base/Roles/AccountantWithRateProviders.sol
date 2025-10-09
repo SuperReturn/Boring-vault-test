@@ -253,7 +253,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
      * @notice Reset the highwater mark to the current exchange rate.
      * @dev Callable by OWNER_ROLE.
      */
-    function resetHighwaterMark() external requiresAuth {
+    function resetHighwaterMark() external virtual requiresAuth {
         AccountantState storage state = accountantState;
 
         if (state.exchangeRate > state.highwaterMark) {
