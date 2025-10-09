@@ -296,7 +296,7 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
             _calculateFeesOwed(state, newExchangeRate, currentExchangeRate, currentTotalShares, currentTime);
         }
 
-        state.exchangeRate = newExchangeRate;
+        newExchangeRate = _setExchangeRate(newExchangeRate, state);
         state.totalSharesLastUpdate = uint128(currentTotalShares);
         state.lastUpdateTimestamp = currentTime;
 
@@ -406,31 +406,43 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
     }
 
     /**
-     * @notice Calculate platform fees.
+     * @notice Set the exchange rate.
      */
-    function _calculatePlatformFee(
+    function _setExchangeRate(uint96 newExchangeRate, AccountantState storage state)
+        internal
+        virtual
+        returns (uint96)
+    {
+        state.exchangeRate = newExchangeRate;
+        return newExchangeRate;
+    }
+ 
+    /**
+     * @notice Calculate management fees.
+     */
+    function _calculateManagementFee(
         uint128 totalSharesLastUpdate,
         uint64 lastUpdateTimestamp,
-        uint16 platformFee,
+        uint16 managementFee,
         uint96 newExchangeRate,
         uint256 currentExchangeRate,
         uint256 currentTotalShares,
         uint64 currentTime
-    ) internal view returns (uint256 platformFeesOwedInBase, uint256 shareSupplyToUse) {
+    ) internal view returns (uint256 managementFeesOwedInBase, uint256 shareSupplyToUse) {
         shareSupplyToUse = currentTotalShares;
         // Use the minimum between current total supply and total supply for last update.
         if (totalSharesLastUpdate < shareSupplyToUse) {
             shareSupplyToUse = totalSharesLastUpdate;
         }
 
-        // Determine platform fees owned.
-        if (platformFee > 0) {
+        // Determine management fees owned.
+        if (managementFee > 0) {
             uint256 timeDelta = currentTime - lastUpdateTimestamp;
             uint256 minimumAssets = newExchangeRate > currentExchangeRate
                 ? shareSupplyToUse.mulDivDown(currentExchangeRate, ONE_SHARE)
                 : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
-            uint256 platformFeesAnnual = minimumAssets.mulDivDown(platformFee, 1e4);
-            platformFeesOwedInBase = platformFeesAnnual.mulDivDown(timeDelta, 365 days);
+            uint256 managementFeesAnnual = minimumAssets.mulDivDown(managementFee, 1e4);
+            managementFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
         }
     }
 
@@ -460,31 +472,27 @@ contract AccountantWithRateProviders is Auth, IRateProvider, IPausable {
         uint256 currentExchangeRate,
         uint256 currentTotalShares,
         uint64 currentTime
-    ) internal {
+    ) internal virtual {
         // Only update fees if we are not paused.
         // Update fee accounting.
-        uint256 shareSupplyToUse = currentTotalShares;
-        // Use the minimum between current total supply and total supply for last update.
-        if (state.totalSharesLastUpdate < shareSupplyToUse) {
-            shareSupplyToUse = state.totalSharesLastUpdate;
-        }
-
-        // Determine management fees owned.
-        uint256 timeDelta = currentTime - state.lastUpdateTimestamp;
-        uint256 minimumAssets = newExchangeRate > currentExchangeRate
-            ? shareSupplyToUse.mulDivDown(currentExchangeRate, ONE_SHARE)
-            : shareSupplyToUse.mulDivDown(newExchangeRate, ONE_SHARE);
-        uint256 managementFeesAnnual = minimumAssets.mulDivDown(state.managementFee, 1e4);
-        uint256 newFeesOwedInBase = managementFeesAnnual.mulDivDown(timeDelta, 365 days);
+        (uint256 newFeesOwedInBase, uint256 shareSupplyToUse) = _calculateManagementFee(
+            state.totalSharesLastUpdate,
+            state.lastUpdateTimestamp,
+            state.managementFee,
+            newExchangeRate,
+            currentExchangeRate,
+            currentTotalShares,
+            currentTime
+        );
 
         // Account for performance fees.
         if (newExchangeRate > state.highwaterMark) {
-            if (state.performanceFee > 0) {
-                uint256 changeInExchangeRate = newExchangeRate - state.highwaterMark;
-                uint256 yieldEarned = changeInExchangeRate.mulDivDown(shareSupplyToUse, ONE_SHARE);
-                uint256 performanceFeesOwedInBase = yieldEarned.mulDivDown(state.performanceFee, 1e4);
-                newFeesOwedInBase += performanceFeesOwedInBase;
-            }
+            (uint256 performanceFeesOwedInBase,) =
+                _calculatePerformanceFee(newExchangeRate, shareSupplyToUse, state.highwaterMark, state.performanceFee);
+
+            // Add performance fees to fees owed.
+            newFeesOwedInBase += performanceFeesOwedInBase;
+
             // Always update the highwater mark if the new exchange rate is higher.
             // This way if we are not iniitiall taking performance fees, we can start taking them
             // without back charging them on past performance.
