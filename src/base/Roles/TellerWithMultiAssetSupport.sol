@@ -107,7 +107,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     event BulkWithdraw(address indexed asset, uint256 shareAmount);
     event DepositRefunded(uint256 indexed nonce, bytes32 depositHash, address indexed user);
     event StakingVaultTellerSet(address indexed stakingVaultTeller);
-    event DepositAndStake(address indexed user, address indexed depositAsset, uint256 depositAmount, uint256 shares);
     //============================== IMMUTABLES ===============================
 
     /**
@@ -341,36 +340,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
         if (assetsOut < minimumAssets) revert TellerWithMultiAssetSupport__MinimumAssetsNotMet();
         vault.exit(to, withdrawAsset, assetsOut, msg.sender, shareAmount);
         emit BulkWithdraw(address(withdrawAsset), shareAmount);
-    }
-
-    /**
-     * @notice Allows users to deposit into the BoringVault and stake in the staking vault teller.
-     * @dev Publicly callable.
-     */
-    function depositAndStake(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint)
-        external
-        payable
-        requiresAuth
-        nonReentrant
-        returns (uint256 shares)
-    {
-        if (isPaused) revert TellerWithMultiAssetSupport__Paused();
-
-        if (msg.value > 0) revert TellerWithMultiAssetSupport__DualDeposit();
-        shares = _erc20Deposit(depositAsset, depositAmount, minimumMint, msg.sender);
-
-        _afterPublicDeposit(msg.sender, depositAsset, depositAmount, shares, shareLockPeriod);
-
-        // Call staking vault teller to stake
-        if (stakingVaultTeller == address(0)) {
-            revert TellerWithMultiAssetSupport__StakingVaultTellerNotSet();
-        }
-        uint256 stakedShares = IStakingVaultTeller(stakingVaultTeller).deposit(ERC20(address(vault)), shares, 0);
-
-        // transfer staked shares to user
-        ERC20(stakingVaultTeller).safeTransfer(msg.sender, stakedShares);
-
-        emit DepositAndStake(msg.sender, address(depositAsset), depositAmount, shares);
     }
 
     // ========================================= INTERNAL HELPER FUNCTIONS =========================================
