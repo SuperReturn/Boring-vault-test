@@ -30,7 +30,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
 
     // ========================================= GLOBAL STATE =========================================
     EnumerableSet.Bytes32Set private _withdrawRequests;
-    
+
     uint256 public MATURITY_TIME = 1 days;
 
     /**
@@ -40,11 +40,22 @@ contract AtomicQueue is ReentrancyGuard, Auth {
 
     mapping(ERC20 => uint256) public withdrawInProgressAmount;
 
+    /**
+     * @notice Mapping to track whitelisted addresses.
+     */
+    mapping(address => bool) public whitelist;
+
+    /**
+     * @notice The divisor used to reduce maturity time for whitelisted users.
+     */
+    uint256 public whitelistMaturityDivisor = 10;
+
     //============================== ERRORS ===============================
 
     error AtomicQueue__RequestDeadlineExceeded(address user);
     error AtomicQueue__ZeroOfferAmount(address user);
     error AtomicQueue__RequestNotMature(address user);
+    error BoringOnChainQueue__BadWhitelistDivisor();
 
     //============================== EVENTS ===============================
     /**
@@ -90,6 +101,12 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         uint256 timestamp
     );
 
+    event WhitelistAdded(address indexed user);
+
+    event WhitelistRemoved(address indexed user);
+
+    event WhitelistMaturityDivisorUpdated(uint256 newDivisor);
+
     //============================== IMMUTABLES ===============================
 
     /**
@@ -115,6 +132,37 @@ contract AtomicQueue is ReentrancyGuard, Auth {
 
     function getTotalWithdrawInProgressAmount(address offer) external view returns (uint256) {
         return withdrawInProgressAmount[ERC20(offer)];
+    }
+
+    /**
+     * @notice Add an address to the whitelist.
+     * @dev Callable by MULTISIG_ROLE.
+     * @param user The address to add to the whitelist.
+     */
+    function addToWhitelist(address user) external requiresAuth {
+        whitelist[user] = true;
+        emit WhitelistAdded(user);
+    }
+
+    /**
+     * @notice Remove an address from the whitelist.
+     * @dev Callable by MULTISIG_ROLE.
+     * @param user The address to remove from the whitelist.
+     */
+    function removeFromWhitelist(address user) external requiresAuth {
+        whitelist[user] = false;
+        emit WhitelistRemoved(user);
+    }
+
+    /**
+     * @notice Update the whitelist maturity divisor.
+     * @dev Callable by MULTISIG_ROLE.
+     * @param newDivisor The new divisor value.
+     */
+    function updateWhitelistMaturityDivisor(uint256 newDivisor) external requiresAuth {
+        require(newDivisor > 0, "Divisor must be greater than 0");
+        whitelistMaturityDivisor = newDivisor;
+        emit WhitelistMaturityDivisorUpdated(newDivisor);
     }
 
     //============================== VIEW FUNCTIONS ===============================
@@ -201,12 +249,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
     function updateAtomicRequest(ERC20 offer, ERC20 want, AtomicRequest calldata userRequest) external nonReentrant {
         withdrawInProgressAmount[offer] += userRequest.offerAmount;
 
-        bytes32 requestId = keccak256(abi.encode(
-            msg.sender,
-            address(offer),
-            address(want),
-            userRequest
-        ));
+        bytes32 requestId = keccak256(abi.encode(msg.sender, address(offer), address(want), userRequest));
 
         _withdrawRequests.add(requestId);
         onChainWithdraws[requestId] = userRequest;
@@ -229,13 +272,8 @@ contract AtomicQueue is ReentrancyGuard, Auth {
      * @param userRequest the users request
      */
     function cancelAtomicRequest(ERC20 offer, ERC20 want, AtomicRequest calldata userRequest) external {
-        bytes32 requestId = keccak256(abi.encode(
-            msg.sender,
-            address(offer),
-            address(want),
-            userRequest
-        ));
-        
+        bytes32 requestId = keccak256(abi.encode(msg.sender, address(offer), address(want), userRequest));
+
         _withdrawRequests.remove(requestId);
         emit AtomicRequestCancelled(
             msg.sender,
@@ -278,20 +316,27 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         uint256 assetsForWant;
         for (uint256 i; i < users.length; ++i) {
             // Add maturity time check
-            if (block.timestamp < request.creationTime + MATURITY_TIME) 
+            if (
+                block.timestamp
+                    < request.creationTime
+                        + (whitelist[users[i]] ? MATURITY_TIME / whitelistMaturityDivisor : MATURITY_TIME)
+            ) {
                 revert AtomicQueue__RequestNotMature(users[i]);
-            
-            if (block.timestamp > request.deadline) 
+            }
+
+            if (block.timestamp > request.deadline) {
                 revert AtomicQueue__RequestDeadlineExceeded(users[i]);
-            if (request.offerAmount == 0) 
+            }
+            if (request.offerAmount == 0) {
                 revert AtomicQueue__ZeroOfferAmount(users[i]);
+            }
 
             // User gets whatever their atomic price * offerAmount is.
             assetsForWant += _calculateAssetAmount(request.offerAmount, request.atomicPrice, offerDecimals);
 
             // If all checks above passed, the users request is valid and should be fulfilled.
             assetsToOffer += request.offerAmount;
-            
+
             // Transfer shares from user to solver.
             offer.safeTransferFrom(users[i], solver, request.offerAmount);
         }
@@ -307,20 +352,10 @@ contract AtomicQueue is ReentrancyGuard, Auth {
             withdrawInProgressAmount[offer] -= request.offerAmount;
 
             emit AtomicRequestFulfilled(
-                users[i],
-                address(offer),
-                address(want),
-                request.offerAmount,
-                assetsToUser,
-                block.timestamp
+                users[i], address(offer), address(want), request.offerAmount, assetsToUser, block.timestamp
             );
 
-            bytes32 requestId = keccak256(abi.encode(
-                users[i],
-                address(offer),
-                address(want),
-                request
-            ));
+            bytes32 requestId = keccak256(abi.encode(users[i], address(offer), address(want), request));
             _withdrawRequests.remove(requestId);
         }
     }

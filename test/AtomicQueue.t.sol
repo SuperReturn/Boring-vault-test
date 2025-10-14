@@ -20,7 +20,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 /// @notice Mock USDC token for testing
 contract MockUSDC is ERC20 {
     constructor() ERC20("USD Coin", "USDC", 6) {}
-    
+
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
@@ -34,11 +34,12 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
     using stdStorage for StdStorage;
 
     BoringVault public boringVault;
-    
+
     uint8 public constant MINTER_ROLE = 1;
     uint8 public constant BURNER_ROLE = 2;
     uint8 public constant SOLVER_ROLE = 3;
     uint8 public constant QUEUE_ROLE = 4;
+    uint8 public constant ADMIN_ROLE = 5;
 
     TellerWithMultiAssetSupport public teller;
     AccountantWithRateProviders public accountant;
@@ -48,7 +49,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     ERC20 internal constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     RolesAuthority public rolesAuthority;
-    MockUSDC public USDC; 
+    MockUSDC public USDC;
 
     address internal user = vm.addr(1);
 
@@ -79,7 +80,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         uint256 amount,
         uint256 minPrice,
         uint256 timestamp
-    );  
+    );
 
     event MaturityTimeUpdated(uint256 oldMaturityTime, uint256 newMaturityTime);
 
@@ -92,61 +93,46 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         _startFork(rpcKey, blockNumber);
 
         USDC = new MockUSDC();
-        
+
         Deployer deployer = new Deployer(address(this), Authority(address(0)));
 
         // Deploy implementation
-        address implementation = deployer.deployContract(
-            "BoringVault-Implementation",
-            type(BoringVault).creationCode,
-            hex"",
-            0
-        );
+        address implementation =
+            deployer.deployContract("BoringVault-Implementation", type(BoringVault).creationCode, hex"", 0);
 
         // Prepare initializer data
         bytes memory initializer = abi.encodeWithSelector(
             BoringVault.initialize.selector,
-            address(this),  // owner
-            Authority(address(0)),  // authority
+            address(this), // owner
+            Authority(address(0)), // authority
             "Boring Vault", // name
-            "BV",  // symbol
-            6  // decimals
+            "BV", // symbol
+            6 // decimals
         );
 
         // Deploy proxy
-        bytes memory proxyCreationCode = abi.encodePacked(
-            type(ERC1967Proxy).creationCode,
-            abi.encode(implementation, initializer)
-        );
-        address proxy = deployer.deployContract(
-            "BoringVault",
-            proxyCreationCode,
-            hex"",
-            0
-        );
+        bytes memory proxyCreationCode =
+            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(implementation, initializer));
+        address proxy = deployer.deployContract("BoringVault", proxyCreationCode, hex"", 0);
 
         boringVault = BoringVault(payable(proxy));
         boringVault.setMaxTotalSupply(1000000000000000000000000000000000000000);
 
         accountant = new AccountantWithRateProviders(
-            address(this), 
-            address(boringVault), 
-            payoutAddress, 
+            address(this),
+            address(boringVault),
+            payoutAddress,
             1e6, // USDC decimals
-            address(USDC), 
-            1.005e4, 
-            0.995e4, 
-            1 days / 4, 
-            0, 
+            address(USDC),
+            1.005e4,
+            0.995e4,
+            1 days / 4,
+            0,
             0
         );
 
-        teller = new TellerWithMultiAssetSupport(
-            address(this), 
-            address(boringVault), 
-            address(accountant), 
-            address(USDC)
-        );
+        teller =
+            new TellerWithMultiAssetSupport(address(this), address(boringVault), address(accountant), address(USDC));
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
 
@@ -166,6 +152,13 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             SOLVER_ROLE, address(teller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
         rolesAuthority.setRoleCapability(QUEUE_ROLE, address(atomicSolverV4), AtomicSolverV4.finishSolve.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.addToWhitelist.selector, true);
+        rolesAuthority.setRoleCapability(
+            ADMIN_ROLE, address(atomicQueue), AtomicQueue.removeFromWhitelist.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            ADMIN_ROLE, address(atomicQueue), AtomicQueue.updateWhitelistMaturityDivisor.selector, true
+        );
         rolesAuthority.setPublicCapability(address(teller), TellerWithMultiAssetSupport.deposit.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.updateAtomicRequest.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.solve.selector, true);
@@ -175,6 +168,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         rolesAuthority.setUserRole(address(teller), BURNER_ROLE, true);
         rolesAuthority.setUserRole(address(atomicSolverV4), SOLVER_ROLE, true);
         rolesAuthority.setUserRole(address(atomicQueue), QUEUE_ROLE, true);
+        rolesAuthority.setUserRole(user, ADMIN_ROLE, true);
 
         teller.addAsset(USDC);
 
@@ -184,16 +178,13 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         USDC.approve(address(boringVault), type(uint256).max);
         boringVault.approve(address(atomicQueue), type(uint256).max);
 
-        uint256 initialUSDCBalance = USDC.balanceOf(user);
-        uint256 initialBoringVaultBalance = boringVault.balanceOf(user);
-
         teller.deposit(USDC, 1_000_000_000e6, 0);
         vm.stopPrank();
     }
 
     function testGetWithdrawRequests() external {
         vm.startPrank(user);
-        
+
         // first request
         AtomicRequest memory req1 = AtomicRequest({
             deadline: uint64(block.timestamp + 1),
@@ -235,7 +226,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
 
         // Get both requestIds and requests
         (bytes32[] memory requestIds, AtomicRequest[] memory requests) = atomicQueue.getWithdrawRequests();
-        
+
         assertEq(requestIds.length, 3);
         assertEq(requestIds[0], keccak256(abi.encode(user, address(boringVault), address(USDC), req1)));
         assertEq(requestIds[1], keccak256(abi.encode(user, address(boringVault), address(USDC), req2)));
@@ -260,12 +251,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         });
         atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
 
-        bytes32 requestId = keccak256(abi.encode(
-            user,
-            address(boringVault),
-            address(USDC),
-            req
-        ));
+        bytes32 requestId = keccak256(abi.encode(user, address(boringVault), address(USDC), req));
         AtomicRequest memory request = atomicQueue.getAtomicRequest(requestId);
         assertEq(request.deadline, req.deadline);
         assertEq(request.creationTime, req.creationTime);
@@ -276,7 +262,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
     function testGetTotalWithdrawInProgressAmount() external {
         // Setup initial state
         vm.startPrank(user);
-        
+
         // Create a request
         AtomicRequest memory req = AtomicRequest({
             deadline: uint64(block.timestamp + 1),
@@ -284,14 +270,14 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             atomicPrice: uint88(1e6),
             offerAmount: uint96(1_000e6)
         });
-        
+
         // Verify initial amount is 0
         assertEq(atomicQueue.withdrawInProgressAmount(ERC20(address(boringVault))), 0);
-        
+
         // Update request and verify amount increased
         atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
         assertEq(atomicQueue.withdrawInProgressAmount(ERC20(address(boringVault))), 1_000e6);
-        
+
         vm.stopPrank();
     }
 
@@ -303,7 +289,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
 
     function testGetWithdrawRequestsMultiple() external {
         vm.startPrank(user);
-        
+
         // Create multiple requests with different timestamps
         AtomicRequest memory req1 = AtomicRequest({
             deadline: uint64(block.timestamp + 1),
@@ -312,9 +298,9 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             offerAmount: uint96(1_000e6)
         });
         atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req1);
-        
+
         vm.warp(block.timestamp + 10);
-        
+
         AtomicRequest memory req2 = AtomicRequest({
             deadline: uint64(block.timestamp + 1),
             creationTime: uint64(block.timestamp),
@@ -322,58 +308,47 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             offerAmount: uint96(2_000e6)
         });
         atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req2);
-        
+
         // Verify both requests are stored correctly
         (bytes32[] memory requestIds, AtomicRequest[] memory requests) = atomicQueue.getWithdrawRequests();
         assertEq(requestIds.length, 2);
         assertEq(requests.length, 2);
-        
+
         vm.stopPrank();
     }
 
     function testUpdateAtomicRequestBasic() external {
         vm.startPrank(user);
-        
+
         AtomicRequest memory req = AtomicRequest({
             deadline: uint64(block.timestamp + 1),
             creationTime: uint64(block.timestamp),
             atomicPrice: uint88(1e6),
             offerAmount: uint96(1_000e6)
         });
-        
+
         // Verify event emission
         vm.expectEmit(true, true, true, true);
         emit AtomicRequestUpdated(
-            user,
-            address(boringVault),
-            address(USDC),
-            1_000e6,
-            req.deadline,
-            req.atomicPrice,
-            block.timestamp
+            user, address(boringVault), address(USDC), 1_000e6, req.deadline, req.atomicPrice, block.timestamp
         );
-        
+
         atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
-        
+
         // Verify request was stored
-        bytes32 requestId = keccak256(abi.encode(
-            user,
-            address(boringVault),
-            address(USDC),
-            req
-        ));
+        bytes32 requestId = keccak256(abi.encode(user, address(boringVault), address(USDC), req));
         AtomicRequest memory storedReq = atomicQueue.getAtomicRequest(requestId);
         assertEq(storedReq.deadline, req.deadline);
         assertEq(storedReq.creationTime, req.creationTime);
         assertEq(storedReq.atomicPrice, req.atomicPrice);
         assertEq(storedReq.offerAmount, req.offerAmount);
-        
+
         vm.stopPrank();
     }
 
     function testCancelAtomicRequest() external {
         vm.startPrank(user);
-        
+
         // First create a request
         AtomicRequest memory req = AtomicRequest({
             deadline: uint64(block.timestamp + 1),
@@ -381,85 +356,72 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             atomicPrice: uint88(1e6),
             offerAmount: uint96(1_000e6)
         });
-        
+
         atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
-        
+
         // Verify request exists
         (bytes32[] memory requestIdsBefore,) = atomicQueue.getWithdrawRequests();
         assertEq(requestIdsBefore.length, 1);
-        
+
         // Cancel request
         vm.expectEmit(true, true, true, true);
         emit AtomicRequestCancelled(
-            user,
-            address(boringVault),
-            address(USDC),
-            req.offerAmount,
-            req.deadline,
-            req.atomicPrice,
-            block.timestamp
+            user, address(boringVault), address(USDC), req.offerAmount, req.deadline, req.atomicPrice, block.timestamp
         );
-        
+
         atomicQueue.cancelAtomicRequest(ERC20(address(boringVault)), USDC, req);
-        
+
         // Verify request was removed
         (bytes32[] memory requestIdsAfter,) = atomicQueue.getWithdrawRequests();
         assertEq(requestIdsAfter.length, 0);
-        
+
         vm.stopPrank();
     }
 
     function testSolveRequest() external {
         vm.startPrank(user);
-        
+
         AtomicRequest memory req = AtomicRequest({
-            deadline: uint64(block.timestamp + atomicQueue.MATURITY_TIME() * 2), 
+            deadline: uint64(block.timestamp + atomicQueue.MATURITY_TIME() * 2),
             creationTime: uint64(block.timestamp),
             atomicPrice: uint88(1e6),
             offerAmount: uint96(1_000e6)
         });
-        
+
         atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
 
         // Verify request was added
         (bytes32[] memory requestIds,) = atomicQueue.getWithdrawRequests();
         assertEq(requestIds.length, 1);
-        
+
         // Setup solver
         address solver = address(atomicSolverV4);
-        
+
         // Approve solver
         USDC.approve(solver, type(uint256).max);
         boringVault.approve(solver, type(uint256).max);
-        
+
         // Warp past maturity time
         vm.warp(block.timestamp + atomicQueue.MATURITY_TIME() + 1);
-        
+
         atomicSolverV4.redeemSelfSolve(
-            atomicQueue,
-            ERC20(address(boringVault)),
-            USDC,
-            user,
-            0,
-            type(uint256).max,
-            teller,
-            req
+            atomicQueue, ERC20(address(boringVault)), USDC, user, 0, type(uint256).max, teller, req
         );
-        
+
         // Verify request was removed
         (requestIds,) = atomicQueue.getWithdrawRequests();
         assertEq(requestIds.length, 0);
 
         // check user balance
-        assertEq(USDC.balanceOf(user), 1_000e6);    
+        assertEq(USDC.balanceOf(user), 1_000e6);
         assertEq(boringVault.balanceOf(user), 1_000_000_000e6 - 1_000e6);
-        
+
         vm.stopPrank();
     }
 
     function testSolveRequestExpiredDeadline() external {
         vm.startPrank(user);
-        
+
         // Create request with short deadline but after maturity time
         AtomicRequest memory req = AtomicRequest({
             deadline: uint64(block.timestamp + atomicQueue.MATURITY_TIME() + 1),
@@ -467,26 +429,26 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             atomicPrice: uint88(1e6),
             offerAmount: uint96(1_000e6)
         });
-        
+
         atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
-        
+
         // Move time past maturity time and deadline
         vm.warp(block.timestamp + atomicQueue.MATURITY_TIME() + 2);
-        
+
         // Setup solver
         address[] memory users = new address[](1);
         users[0] = user;
-        
+
         // Expect revert on solve
         vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__RequestDeadlineExceeded.selector, user));
         atomicQueue.solve(ERC20(address(boringVault)), USDC, users, "", address(atomicSolverV4), req);
-        
+
         vm.stopPrank();
     }
 
     function testSolveRequestZeroAmount() external {
         vm.startPrank(user);
-        
+
         // Create request with zero amount but valid maturity time
         AtomicRequest memory req = AtomicRequest({
             deadline: uint64(block.timestamp + atomicQueue.MATURITY_TIME() + 1),
@@ -494,26 +456,26 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             atomicPrice: uint88(1e6),
             offerAmount: 0
         });
-        
+
         atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
-        
+
         // Move time past maturity time
         vm.warp(block.timestamp + atomicQueue.MATURITY_TIME() + 1);
-        
+
         // Setup solver
         address[] memory users = new address[](1);
         users[0] = user;
-        
+
         // Expect revert on solve
         vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__ZeroOfferAmount.selector, user));
         atomicQueue.solve(ERC20(address(boringVault)), USDC, users, "", address(atomicSolverV4), req);
-        
+
         vm.stopPrank();
     }
 
     function testSolveRequestBeforeMaturity() external {
         vm.startPrank(user);
-        
+
         // Create request
         AtomicRequest memory req = AtomicRequest({
             deadline: uint64(block.timestamp + atomicQueue.MATURITY_TIME() + 1),
@@ -521,48 +483,41 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             atomicPrice: uint88(1e6),
             offerAmount: uint96(1_000e6)
         });
-        
+
         atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
-        
+
         // Try to solve before maturity time
         address[] memory users = new address[](1);
         users[0] = user;
-        
+
         // Should revert because maturity time hasn't passed
         vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__RequestNotMature.selector, user));
         atomicQueue.solve(ERC20(address(boringVault)), USDC, users, "", address(atomicSolverV4), req);
-        
+
         // Warp past maturity time
         vm.warp(block.timestamp + atomicQueue.MATURITY_TIME() + 1);
-        
+
         // Now the solve should work
         USDC.approve(address(atomicSolverV4), type(uint256).max);
         boringVault.approve(address(atomicSolverV4), type(uint256).max);
-        
+
         atomicSolverV4.redeemSelfSolve(
-            atomicQueue,
-            ERC20(address(boringVault)),
-            USDC,
-            user,
-            0,
-            type(uint256).max,
-            teller,
-            req
+            atomicQueue, ERC20(address(boringVault)), USDC, user, 0, type(uint256).max, teller, req
         );
-        
+
         vm.stopPrank();
     }
 
     function testSetMaturityTime() external {
         uint256 newMaturityTime = 2 hours;
-        
+
         // Should emit event with correct initial value (1 days)
         vm.expectEmit(true, true, true, true);
         emit MaturityTimeUpdated(1 days, newMaturityTime);
-        
+
         // Set new maturity time
         atomicQueue.setMaturityTime(newMaturityTime);
-        
+
         // Verify new value
         assertEq(atomicQueue.MATURITY_TIME(), newMaturityTime);
     }
@@ -571,6 +526,58 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         vm.prank(user);
         vm.expectRevert("UNAUTHORIZED");
         atomicQueue.setMaturityTime(2 hours);
+    }
+
+    function testAddAndRemoveFromWhitelist() external {
+        vm.startPrank(user);
+        atomicQueue.addToWhitelist(user);
+        assertTrue(atomicQueue.whitelist(user));
+        atomicQueue.removeFromWhitelist(user);
+        assertFalse(atomicQueue.whitelist(user));
+        vm.stopPrank();
+    }
+
+    function testSolveWhiteListUser() external {
+        vm.startPrank(user);
+        atomicQueue.addToWhitelist(user);
+        atomicQueue.updateWhitelistMaturityDivisor(10);
+        assertTrue(atomicQueue.whitelist(user));
+
+        AtomicRequest memory req = AtomicRequest({
+            deadline: uint64(block.timestamp + atomicQueue.MATURITY_TIME() * 2),
+            creationTime: uint64(block.timestamp),
+            atomicPrice: uint88(1e6),
+            offerAmount: uint96(1_000e6)
+        });
+        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), USDC, req);
+
+        // Verify request was added
+        (bytes32[] memory requestIds,) = atomicQueue.getWithdrawRequests();
+        assertEq(requestIds.length, 1);
+
+        // Setup solver
+        address solver = address(atomicSolverV4);
+
+        // Approve solver
+        USDC.approve(solver, type(uint256).max);
+        boringVault.approve(solver, type(uint256).max);
+
+        // Warp past maturity time for whitelisted user
+        vm.warp(block.timestamp + atomicQueue.MATURITY_TIME() / 10 + 1);
+
+        atomicSolverV4.redeemSelfSolve(
+            atomicQueue, ERC20(address(boringVault)), USDC, user, 0, type(uint256).max, teller, req
+        );
+
+        // Verify request was removed
+        (requestIds,) = atomicQueue.getWithdrawRequests();
+        assertEq(requestIds.length, 0);
+
+        // check user balance
+        assertEq(USDC.balanceOf(user), 1_000e6);
+        assertEq(boringVault.balanceOf(user), 1_000_000_000e6 - 1_000e6);
+
+        vm.stopPrank();
     }
 
     // ========================================= HELPER FUNCTIONS =========================================
