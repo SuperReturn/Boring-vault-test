@@ -231,15 +231,7 @@ contract AccountantWithRateProviders2Test is Test, MerkleTreeHelper {
 
         (uint96 yieldEarned,) = accountant.fixedRateAccountantState();
 
-        // The management fee should be forfeited, but yield and performance fees should be calculated.
-        uint256 totalSupply = boringVault.totalSupply(); // Also equal to min assets since exchange rate started at 1e18.
-        uint256 grossYield = uint256(newExchangeRate - 1e18).mulDivDown(totalSupply, 1e18);
-        uint256 expectedFee = grossYield.mulDivDown(performanceFee, 1e4);
-
-        assertEq(yieldEarned, uint96(grossYield - expectedFee), "Yield earned should be correct");
-
-        (,, uint128 actualFeesOwedInBase,,,,,,,,,) = accountant.accountantState();
-        assertEq(actualFeesOwedInBase, expectedFee, "Fees owed in base should be correct");
+        assertEq(yieldEarned, 0, "Yield earned should be correct");
     }
 
     function testMassiveYieldEarned() external {

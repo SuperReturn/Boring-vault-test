@@ -196,7 +196,7 @@ contract AccountantWithRateProviders2 is AccountantWithRateProviders {
             if (yieldEarned < (managementFeesOwedInBase + performanceFeesOwedInBase)) {
                 // This means that the management fee + performance fee is greater than or equal to the exchange rate appreciation,
                 // so the management fee is forfeited, but yield and performance fees are still calculated.
-                feesOwedInBase = performanceFeesOwedInBase;
+                feesOwedInBase = yieldEarned;
             } else {
                 feesOwedInBase = managementFeesOwedInBase + performanceFeesOwedInBase;
             }
