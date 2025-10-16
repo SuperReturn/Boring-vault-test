@@ -10,6 +10,7 @@ import {BalancerVault} from "src/interfaces/BalancerVault.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {AccountantWithRateProviders2, IRateProvider} from "src/base/Roles/AccountantWithRateProviders2.sol";
+import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {ContractNames} from "resources/ContractNames.sol";
@@ -359,11 +360,11 @@ contract DeployArcticArchitecture2 is Script, ContractNames, MainnetAddresses {
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updatePerformanceFee.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updatePerformanceFee.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updatePerformanceFee.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updatePerformanceFee.selector, true
                 );
             }
             if (!rolesAuthority.doesRoleHaveCapability(OWNER_ROLE, address(accountant), Auth.setAuthority.selector)) {
@@ -376,56 +377,56 @@ contract DeployArcticArchitecture2 is Script, ContractNames, MainnetAddresses {
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateDelay.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateDelay.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateDelay.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateDelay.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateUpper.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateUpper.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateUpper.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateUpper.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateLower.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateLower.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateLower.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateLower.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateManagementFee.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateManagementFee.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updateManagementFee.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updateManagementFee.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updatePayoutAddress.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updatePayoutAddress.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.updatePayoutAddress.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.updatePayoutAddress.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.setRateProviderData.selector
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.setRateProviderData.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    OWNER_ROLE, address(accountant), AccountantWithRateProviders2.setRateProviderData.selector, true
+                    OWNER_ROLE, address(accountant), AccountantWithRateProviders.setRateProviderData.selector, true
                 );
             }
             if (
@@ -533,20 +534,20 @@ contract DeployArcticArchitecture2 is Script, ContractNames, MainnetAddresses {
             // MULTISIG_ROLE
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders2.pause.selector
+                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders.pause.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders2.pause.selector, true
+                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders.pause.selector, true
                 );
             }
             if (
                 !rolesAuthority.doesRoleHaveCapability(
-                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders2.unpause.selector
+                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders.unpause.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
-                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders2.unpause.selector, true
+                    MULTISIG_ROLE, address(accountant), AccountantWithRateProviders.unpause.selector, true
                 );
             }
             if (
@@ -712,13 +713,13 @@ contract DeployArcticArchitecture2 is Script, ContractNames, MainnetAddresses {
                 !rolesAuthority.doesRoleHaveCapability(
                     UPDATE_EXCHANGE_RATE_ROLE,
                     address(accountant),
-                    AccountantWithRateProviders2.updateExchangeRate.selector
+                    AccountantWithRateProviders.updateExchangeRate.selector
                 )
             ) {
                 rolesAuthority.setRoleCapability(
                     UPDATE_EXCHANGE_RATE_ROLE,
                     address(accountant),
-                    AccountantWithRateProviders2.updateExchangeRate.selector,
+                    AccountantWithRateProviders.updateExchangeRate.selector,
                     true
                 );
             }
