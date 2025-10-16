@@ -16,8 +16,10 @@ import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/U
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IERC7802} from "src/interfaces/IERC7802.sol";
+import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
-contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, ERC721Holder, ERC1155Holder, IERC7802 {
+
+contract BoringVault is ERC4626Upgradeable, Auth, UUPSUpgradeable, ERC721Holder, ERC1155Holder, IERC7802 {
     using Address for address;
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -52,8 +54,10 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
         Authority _authority,
         string memory _name,
         string memory _symbol,
-        uint8 decimals_
+        uint8 decimals_,
+        IERC20 asset_
     ) public initializer {
+        __ERC4626_init(asset_);
         __ERC20_init(_name, _symbol);
         __UUPSUpgradeable_init();
         owner = _owner;
@@ -157,12 +161,12 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
         if (address(hook) != address(0)) hook.beforeTransfer(from, to, msg.sender);
     }
 
-    function transfer(address to, uint256 amount) public override returns (bool) {
+    function transfer(address to, uint256 amount) public override(ERC20Upgradeable, IERC20) returns (bool) {
         _callBeforeTransfer(msg.sender, to);
         return super.transfer(to, amount);
     }
 
-    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public override(ERC20Upgradeable, IERC20) returns (bool) {
         _callBeforeTransfer(from, to);
         return super.transferFrom(from, to, amount);
     }
