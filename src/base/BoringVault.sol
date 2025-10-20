@@ -17,6 +17,9 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IERC7802} from "src/interfaces/IERC7802.sol";
 import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 
 contract BoringVault is ERC4626Upgradeable, Auth, UUPSUpgradeable, ERC721Holder, ERC1155Holder, IERC7802 {
@@ -196,9 +199,14 @@ contract BoringVault is ERC4626Upgradeable, Auth, UUPSUpgradeable, ERC721Holder,
     }
 
     /// @inheritdoc IERC165
-    function supportsInterface(bytes4 _interfaceId) public view virtual override (ERC1155Holder, IERC165)returns (bool) {
-        return _interfaceId == type(IERC7802).interfaceId || _interfaceId == type(IERC20).interfaceId
-            || _interfaceId == type(IERC165).interfaceId || super.supportsInterface(_interfaceId);
+    function supportsInterface(bytes4 _interfaceId) public view virtual override (ERC1155Holder, IERC165) returns (bool) {
+        return _interfaceId == type(IERC7802).interfaceId 
+            || _interfaceId == type(IERC20).interfaceId
+            || _interfaceId == type(IERC20Metadata).interfaceId
+            || _interfaceId == type(IERC4626).interfaceId
+            || _interfaceId == type(IERC721Receiver).interfaceId
+            || _interfaceId == type(IERC165).interfaceId 
+            || super.supportsInterface(_interfaceId);
     }
 
     //============================== RECEIVE ===============================
