@@ -11,10 +11,6 @@ import {BeforeTransferHook} from "src/interfaces/BeforeTransferHook.sol";
 import {Auth, Authority} from "@solmate/auth/Auth.sol";
 import {ReentrancyGuard} from "@solmate/utils/ReentrancyGuard.sol";
 
-interface IStakingVaultTeller {
-    function deposit(ERC20 depositAsset, uint256 depositAmount, uint256 minimumMint) external payable returns (uint256 shares);
-}
-
 contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuard {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
@@ -26,11 +22,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
      * @notice Native address used to tell the contract to handle native asset deposits.
      */
     address internal constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
-    /**
-     * @notice The staking vault teller address.
-     */
-    address internal stakingVaultTeller = address(0);
 
     /**
      * @notice The maximum possible share lock period.
@@ -86,7 +77,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     error TellerWithMultiAssetSupport__ZeroShares();
     error TellerWithMultiAssetSupport__DualDeposit();
     error TellerWithMultiAssetSupport__Paused();
-    error TellerWithMultiAssetSupport__StakingVaultTellerNotSet();
 
     //============================== EVENTS ===============================
 
@@ -106,7 +96,7 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     event BulkDeposit(address indexed asset, uint256 depositAmount);
     event BulkWithdraw(address indexed asset, uint256 shareAmount);
     event DepositRefunded(uint256 indexed nonce, bytes32 depositHash, address indexed user);
-    event StakingVaultTellerSet(address indexed stakingVaultTeller);
+
     //============================== IMMUTABLES ===============================
 
     /**
@@ -139,11 +129,6 @@ contract TellerWithMultiAssetSupport is Auth, BeforeTransferHook, ReentrancyGuar
     }
 
     // ========================================= ADMIN FUNCTIONS =========================================
-
-    function setStakingVaultTeller(address _stakingVaultTeller) external requiresAuth {
-        stakingVaultTeller = _stakingVaultTeller;
-        emit StakingVaultTellerSet(_stakingVaultTeller);
-    }
 
     /**
      * @notice Pause this contract, which prevents future calls to `deposit` and `depositWithPermit`.
