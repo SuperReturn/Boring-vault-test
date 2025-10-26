@@ -12,15 +12,24 @@ import {Auth, Authority} from "@solmate/auth/Auth.sol";
 import {ERC20Upgradeable} from "@openzeppelin-contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IERC7802} from "src/interfaces/IERC7802.sol";
+import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, ERC721Holder, ERC1155Holder, IERC7802 {
+import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
+
+
+contract BoringVaultWithERC4626 is ERC4626Upgradeable, Auth, UUPSUpgradeable, ERC721Holder, ERC1155Holder, IERC7802 {
     using Address for address;
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
+    using Math for uint256;
 
     // ========================================= STATE =========================================
 
@@ -32,6 +41,8 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
     uint8 private _decimals;
 
     uint256 public maxTotalSupply = 10_000_000;
+
+    AccountantWithRateProviders public accountant;
 
     //============================== EVENTS ===============================
 
@@ -52,8 +63,10 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
         Authority _authority,
         string memory _name,
         string memory _symbol,
-        uint8 decimals_
+        uint8 decimals_,
+        IERC20 asset_
     ) public initializer {
+        __ERC4626_init(asset_);
         __ERC20_init(_name, _symbol);
         __UUPSUpgradeable_init();
         owner = _owner;
@@ -95,6 +108,11 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
         for (uint256 i; i < targetsLength; ++i) {
             results[i] = targets[i].functionCallWithValue(data[i], values[i]);
         }
+    }
+
+    //============================== ACCOUNTANT ===============================
+    function setAccountant(address _accountant) external requiresAuth {
+        accountant = AccountantWithRateProviders(_accountant);
     }
 
     //============================== ENTER ===============================
@@ -157,12 +175,12 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
         if (address(hook) != address(0)) hook.beforeTransfer(from, to, msg.sender);
     }
 
-    function transfer(address to, uint256 amount) public override returns (bool) {
+    function transfer(address to, uint256 amount) public override(ERC20Upgradeable, IERC20) returns (bool) {
         _callBeforeTransfer(msg.sender, to);
         return super.transfer(to, amount);
     }
 
-    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public override(ERC20Upgradeable, IERC20) returns (bool) {
         _callBeforeTransfer(from, to);
         return super.transferFrom(from, to, amount);
     }
@@ -192,9 +210,40 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
     }
 
     /// @inheritdoc IERC165
-    function supportsInterface(bytes4 _interfaceId) public view virtual override (ERC1155Holder, IERC165)returns (bool) {
-        return _interfaceId == type(IERC7802).interfaceId || _interfaceId == type(IERC20).interfaceId
-            || _interfaceId == type(IERC165).interfaceId || super.supportsInterface(_interfaceId);
+    function supportsInterface(bytes4 _interfaceId) public view virtual override (ERC1155Holder, IERC165) returns (bool) {
+        return _interfaceId == type(IERC7802).interfaceId 
+            || _interfaceId == type(IERC20).interfaceId
+            || _interfaceId == type(IERC20Metadata).interfaceId
+            || _interfaceId == type(IERC4626).interfaceId
+            || _interfaceId == type(IERC721Receiver).interfaceId
+            || _interfaceId == type(IERC165).interfaceId 
+            || super.supportsInterface(_interfaceId);
+    }
+
+    //============================== ERC4626 ===============================
+
+    function deposit(uint256 assets, address receiver) public override requiresAuth returns (uint256 shares) {
+        return super.deposit(assets, receiver);
+    }
+
+    function withdraw(uint256 shares, address receiver, address owner) public override requiresAuth returns (uint256 assets) {
+        return super.withdraw(shares, receiver, owner);
+    }
+
+    function mint(uint256 shares, address receiver) public override requiresAuth returns (uint256 assets) {
+        return super.mint(shares, receiver);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) public override requiresAuth returns (uint256 assets) {
+        return super.redeem(shares, receiver, owner);
+    } 
+
+    function _convertToShares(uint256 assets, Math.Rounding rounding) internal view override returns (uint256 shares) {
+        return assets.mulDiv(10 ** decimals(), accountant.getRateSafe(), rounding);
+    }
+
+    function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view override returns (uint256 assets) {
+        return shares.mulDiv(accountant.getRateSafe(), 10 ** decimals(), rounding);
     }
 
     //============================== RECEIVE ===============================
