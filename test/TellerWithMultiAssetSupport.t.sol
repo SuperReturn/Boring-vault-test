@@ -94,7 +94,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
 
-        atomicQueue = new AtomicQueue(address(this), rolesAuthority);
+        atomicQueue = new AtomicQueue(address(this), rolesAuthority, address(accountant));
         atomicSolverV4 = new AtomicSolverV4(address(this), rolesAuthority);
 
         boringVault.setAuthority(rolesAuthority);
@@ -405,11 +405,13 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         AtomicRequest memory req = AtomicRequest({
             deadline: uint64(block.timestamp + 3 days),
             creationTime: uint64(block.timestamp),
-            atomicPrice: 1e18,
-            offerAmount: uint96(shares)
+            offerAmount: uint96(shares),
+            user: user,
+            offer: address(boringVault),
+            want: address(WETH)
         });
         boringVault.approve(address(atomicQueue), shares);
-        atomicQueue.updateAtomicRequest(ERC20(address(boringVault)), ERC20(WETH), req);
+        atomicQueue.updateAtomicRequest(req);
         vm.stopPrank();
 
         skip(1 days + 1); // Maturity time is 1 days, so skip 1 days + 1 to pass maturity time check.
@@ -420,7 +422,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         // Solve withdraw request.
         address[] memory users = new address[](1);
         users[0] = user;
-        atomicSolverV4.redeemSolve(atomicQueue, ERC20(address(boringVault)), ERC20(WETH), users, 0, type(uint256).max, teller, req);
+        atomicSolverV4.redeemSolve(atomicQueue, 0, type(uint256).max, teller, req);
         vm.stopPrank();
     }
 

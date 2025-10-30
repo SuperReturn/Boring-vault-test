@@ -14,6 +14,7 @@ interface IAtomicSolver {
      * @param want the ERC20 asset the solver must approve the queue for
      * @param assetsToOffer the amount of `offer` sent to the solver
      * @param assetsForWant the amount of `want` the solver must approve the queue for
+     * @param vault the address of the vault
      */
     function finishSolve(
         bytes calldata runData,
@@ -21,6 +22,7 @@ interface IAtomicSolver {
         ERC20 offer,
         ERC20 want,
         uint256 assetsToOffer,
-        uint256 assetsForWant
+        uint256 assetsForWant,
+        address vault
     ) external;
 }

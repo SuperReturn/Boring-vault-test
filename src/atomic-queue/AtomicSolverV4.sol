@@ -17,11 +17,6 @@ import {Multicall} from "@openzeppelin/contracts/utils/Multicall.sol";
 contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
-    // ========================================= CONSTANTS =========================================
-
-    ERC20 internal constant eETH = ERC20(0x35fA164735182de50811E8e2E824cFb9B6118ac2);
-    ERC20 internal constant weETH = ERC20(0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee);
-
     // ========================================= ENUMS =========================================
 
     /**
@@ -43,10 +38,10 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
     error AtomicSolverV4___AlreadyInSolveContext();
     error AtomicSolverV4___FailedToSolve();
     error AtomicSolverV4___SolveMaxAssetsExceeded(uint256 actualAssets, uint256 maxAssets);
-    error AtomicSolverV4___P2PSolveMinSharesNotMet(uint256 actualShares, uint256 minShares);
+    // error AtomicSolverV4___P2PSolveMinSharesNotMet(uint256 actualShares, uint256 minShares);
     error AtomicSolverV4___BoringVaultTellerMismatch(address vault, address teller);
     error AtomicSolverV4___NoBoringVaultSharesReceived();
-    error AtomicSolverV4___OnlySelf();
+    // error AtomicSolverV4___OnlySelf();
 
     //============================== IMMUTABLES ===============================
 
@@ -67,24 +62,21 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
     }
 
     //============================== SOLVE FUNCTIONS ===============================
-    /**
-     * @notice Solver wants to exchange p2p share.asset() for withdraw queue shares.
-     * @dev Solver should approve this contract to spend share.asset().
-     */
-    function p2pSolve(
-        AtomicQueue queue,
-        ERC20 offer,
-        ERC20 want,
-        address[] calldata users,
-        uint256 minOfferReceived,
-        uint256 maxAssets,
-        AtomicRequest calldata request
-    ) external requiresAuth {
-        bytes memory runData = abi.encode(SolveType.P2P, msg.sender, minOfferReceived, maxAssets);
+    // /**
+    //  * @notice Solver wants to exchange p2p share.asset() for withdraw queue shares.
+    //  * @dev Solver should approve this contract to spend share.asset().
+    //  */
+    // function p2pSolve(
+    //     AtomicQueue queue,
+    //     uint256 minOfferReceived,
+    //     uint256 maxAssets,
+    //     AtomicRequest calldata request
+    // ) external requiresAuth {
+    //     bytes memory runData = abi.encode(SolveType.P2P, msg.sender, minOfferReceived, maxAssets);
 
-        // Solve for `users`.
-        queue.solve(offer, want, users, runData, address(this), request);
-    }
+    //     // Solve for `users`.
+    //     queue.solve(runData, address(this), request);
+    // }
 
     /**
      * @notice Solver wants to redeem withdraw offer shares, to help cover withdraw.
@@ -92,9 +84,6 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
      */
     function redeemSolve(
         AtomicQueue queue,
-        ERC20 offer,
-        ERC20 want,
-        address[] calldata users,
         uint256 minimumAssetsOut,
         uint256 maxAssets,
         TellerWithMultiAssetSupport teller,
@@ -103,46 +92,38 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
         bytes memory runData = abi.encode(SolveType.REDEEM, msg.sender, minimumAssetsOut, maxAssets, teller);
 
         // Solve for `users`.
-        queue.solve(offer, want, users, runData, address(this), request);
+        queue.solve(runData, address(this), request);
     }
 
-    /**
-     * @notice Allows a user to solve their own request to redeem Boring Vault shares and mint new Boring Vault shares.
-     * @dev `offer` MUST be an ERC4626 vault.
-     */
-    function redeemSelfSolve(
-        AtomicQueue queue,
-        ERC20 offer,
-        ERC20 want,
-        address user,
-        uint256 minimumAssetsOut,
-        uint256 maxAssets,
-        TellerWithMultiAssetSupport teller,
-        AtomicRequest calldata request
-    ) external requiresAuth {
-        if (user != msg.sender) revert AtomicSolverV4___OnlySelf();
-        bytes memory runData = abi.encode(SolveType.REDEEM, msg.sender, minimumAssetsOut, maxAssets, teller);
+    // /**
+    //  * @notice Allows a user to solve their own request to redeem Boring Vault shares.
+    //  * @dev The user must be the same as the request user.
+    //  */
+    // function redeemSelfSolve(
+    //     AtomicQueue queue,
+    //     uint256 minimumAssetsOut,
+    //     uint256 maxAssets,
+    //     TellerWithMultiAssetSupport teller,
+    //     AtomicRequest calldata request
+    // ) external requiresAuth {
+    //     if (request.user != msg.sender) revert AtomicSolverV4___OnlySelf();
+    //     bytes memory runData = abi.encode(SolveType.REDEEM, msg.sender, minimumAssetsOut, maxAssets, teller);
 
-        address[] memory users = new address[](1);
-        users[0] = user;
-        queue.solve(offer, want, users, runData, address(this), request);
-    }
+    //     queue.solve(runData, address(this), request);
+    // }
 
-    function migrationRedeemSolve(
-        AtomicQueue queue,
-        ERC20 offer,
-        ERC20 want,
-        address[] calldata users,
-        uint256 minimumAssetsOut,
-        uint256 maxAssets,
-        TellerWithMultiAssetSupport teller,
-        AtomicRequest calldata request
-    ) external requiresAuth {
-        bytes memory runData = abi.encode(SolveType.MIGRATION_REDEEM, msg.sender, minimumAssetsOut, maxAssets, teller);
+    // function migrationRedeemSolve(
+    //     AtomicQueue queue,
+    //     uint256 minimumAssetsOut,
+    //     uint256 maxAssets,
+    //     TellerWithMultiAssetSupport teller,
+    //     AtomicRequest calldata request
+    // ) external requiresAuth {
+    //     bytes memory runData = abi.encode(SolveType.MIGRATION_REDEEM, msg.sender, minimumAssetsOut, maxAssets, teller);
 
-        // Solve for `users`.
-        queue.solve(offer, want, users, runData, address(this), request);
-    }
+    //     // Solve for `users`.
+    //     queue.solve(runData, address(this), request);
+    // }
 
     //============================== ISOLVER FUNCTIONS ===============================
 
@@ -160,60 +141,61 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
         ERC20 offer,
         ERC20 want,
         uint256 offerReceived,
-        uint256 wantApprovalAmount
+        uint256 wantApprovalAmount,
+        address vault
     ) external requiresAuth {
         if (initiator != address(this)) revert AtomicSolverV4___WrongInitiator();
 
-        address queue = msg.sender;
+        // address queue = msg.sender;
 
-        SolveType _type = abi.decode(runData, (SolveType));
+        // SolveType _type = abi.decode(runData, (SolveType));
 
-        if (_type == SolveType.P2P) {
-            _p2pSolve(queue, runData, offer, want, offerReceived, wantApprovalAmount);
-        } else if (_type == SolveType.REDEEM) {
-            _redeemSolve(queue, runData, offer, want, offerReceived, wantApprovalAmount);
-        } else if (_type == SolveType.MIGRATION_REDEEM) {
-            _migrationRedeemSolve(queue, runData, offer, want, offerReceived, wantApprovalAmount);
-        } else {
-            revert AtomicSolverV4___FailedToSolve();
-        }
+        // if (_type == SolveType.P2P) {
+        //     _p2pSolve(queue, runData, offer, want, offerReceived, wantApprovalAmount);
+        // } else if (_type == SolveType.REDEEM) {
+            _redeemSolve(msg.sender, runData, offer, want, offerReceived, wantApprovalAmount, vault);
+        // } else if (_type == SolveType.MIGRATION_REDEEM) {
+        //     _migrationRedeemSolve(queue, runData, offer, want, offerReceived, wantApprovalAmount);
+        // } else {
+        //     revert AtomicSolverV4___FailedToSolve();
+        // }
     }
 
     //============================== HELPER FUNCTIONS ===============================
 
-    /**
-     * @notice Helper function containing the logic to handle p2p solves.
-     */
-    function _p2pSolve(
-        address queue,
-        bytes memory runData,
-        ERC20 offer,
-        ERC20 want,
-        uint256 offerReceived,
-        uint256 wantApprovalAmount
-    ) internal {
-        (, address solver, uint256 minOfferReceived, uint256 maxAssets) =
-            abi.decode(runData, (SolveType, address, uint256, uint256));
+    // /**
+    //  * @notice Helper function containing the logic to handle p2p solves.
+    //  */
+    // function _p2pSolve(
+    //     address queue,
+    //     bytes memory runData,
+    //     ERC20 offer,
+    //     ERC20 want,
+    //     uint256 offerReceived,
+    //     uint256 wantApprovalAmount
+    // ) internal {
+    //     (, address solver, uint256 minOfferReceived, uint256 maxAssets) =
+    //         abi.decode(runData, (SolveType, address, uint256, uint256));
 
-        // Make sure solver is receiving the minimum amount of offer.
-        if (offerReceived < minOfferReceived) {
-            revert AtomicSolverV4___P2PSolveMinSharesNotMet(offerReceived, minOfferReceived);
-        }
+    //     // Make sure solver is receiving the minimum amount of offer.
+    //     if (offerReceived < minOfferReceived) {
+    //         revert AtomicSolverV4___P2PSolveMinSharesNotMet(offerReceived, minOfferReceived);
+    //     }
 
-        // Make sure solvers `maxAssets` was not exceeded.
-        if (wantApprovalAmount > maxAssets) {
-            revert AtomicSolverV4___SolveMaxAssetsExceeded(wantApprovalAmount, maxAssets);
-        }
+    //     // Make sure solvers `maxAssets` was not exceeded.
+    //     if (wantApprovalAmount > maxAssets) {
+    //         revert AtomicSolverV4___SolveMaxAssetsExceeded(wantApprovalAmount, maxAssets);
+    //     }
 
-        // Transfer required want from solver.
-        want.safeTransferFrom(solver, address(this), wantApprovalAmount);
+    //     // Transfer required want from solver.
+    //     want.safeTransferFrom(solver, address(this), wantApprovalAmount);
 
-        // Transfer offer to solver.
-        offer.safeTransfer(solver, offerReceived);
+    //     // Transfer offer to solver.
+    //     offer.safeTransfer(solver, offerReceived);
 
-        // Approve queue to spend wantApprovalAmount.
-        want.safeApprove(queue, wantApprovalAmount);
-    }
+    //     // Approve queue to spend wantApprovalAmount.
+    //     want.safeApprove(queue, wantApprovalAmount);
+    // }
 
     /**
      * @notice Helper function containing the logic to handle redeem solves.
@@ -224,7 +206,8 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
         ERC20 offer,
         ERC20 want,
         uint256 offerReceived,
-        uint256 wantApprovalAmount
+        uint256 wantApprovalAmount,
+        address vault
     ) internal {
         (, address solver, uint256 minimumAssetsOut, uint256 maxAssets, TellerWithMultiAssetSupport teller) =
             abi.decode(runData, (SolveType, address, uint256, uint256, TellerWithMultiAssetSupport));
@@ -237,55 +220,61 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
             revert AtomicSolverV4___SolveMaxAssetsExceeded(wantApprovalAmount, maxAssets);
         }
 
-        // Redeem the shares, sending assets to solver.
-        teller.bulkWithdraw(want, offerReceived, minimumAssetsOut, solver);
+        // Redeem the shares, sending assets to this contract.
+        uint256 assetsOut = teller.bulkWithdraw(want, offerReceived, minimumAssetsOut, address(this));
 
-        // Transfer required assets from solver.
-        want.safeTransferFrom(solver, address(this), wantApprovalAmount);
+        uint256 excessAssets = assetsOut - wantApprovalAmount;
+        if (excessAssets > 0) { // means there is excess assets from discount, transfer to boring vault
+            want.safeTransfer(vault, excessAssets);
+        }
+
+        // // Transfer required assets from solver.
+        // want.safeTransferFrom(solver, address(this), wantApprovalAmount);
 
         // Approve queue to spend wantApprovalAmount.
+        want.safeApprove(queue, 0);
         want.safeApprove(queue, wantApprovalAmount);
     }
 
-    /**
-     * @notice Helper function containing the logic to handle migration redeem solves.
-     * @dev DO NOT USE THIS FUNCTION IF `offer` Cellar does not exclusively hold BoringVault shares.
-     */
-    function _migrationRedeemSolve(
-        address queue,
-        bytes memory runData,
-        ERC20 offer,
-        ERC20 want,
-        uint256 offerReceived,
-        uint256 wantApprovalAmount
-    ) internal {
-        (, address solver, uint256 minimumAssetsOut, uint256 maxAssets, TellerWithMultiAssetSupport teller) =
-            abi.decode(runData, (SolveType, address, uint256, uint256, TellerWithMultiAssetSupport));
+    // /**
+    //  * @notice Helper function containing the logic to handle migration redeem solves.
+    //  * @dev DO NOT USE THIS FUNCTION IF `offer` Cellar does not exclusively hold BoringVault shares.
+    //  */
+    // function _migrationRedeemSolve(
+    //     address queue,
+    //     bytes memory runData,
+    //     ERC20 offer,
+    //     ERC20 want,
+    //     uint256 offerReceived,
+    //     uint256 wantApprovalAmount
+    // ) internal {
+    //     (, address solver, uint256 minimumAssetsOut, uint256 maxAssets, TellerWithMultiAssetSupport teller) =
+    //         abi.decode(runData, (SolveType, address, uint256, uint256, TellerWithMultiAssetSupport));
 
-        // Make sure solvers `maxAssets` was not exceeded.
-        if (wantApprovalAmount > maxAssets) {
-            revert AtomicSolverV4___SolveMaxAssetsExceeded(wantApprovalAmount, maxAssets);
-        }
+    //     // Make sure solvers `maxAssets` was not exceeded.
+    //     if (wantApprovalAmount > maxAssets) {
+    //         revert AtomicSolverV4___SolveMaxAssetsExceeded(wantApprovalAmount, maxAssets);
+    //     }
 
-        ERC20 boringVaultShare = ERC20(address(teller.vault()));
+    //     ERC20 boringVaultShare = ERC20(address(teller.vault()));
 
-        // Offer is Cellar share, so redeem it to get BoringVault shares.
-        uint256 bvShareDelta = boringVaultShare.balanceOf(address(this));
-        ERC4626(address(offer)).redeem(offerReceived, address(this), address(this));
-        bvShareDelta = boringVaultShare.balanceOf(address(this)) - bvShareDelta;
+    //     // Offer is Cellar share, so redeem it to get BoringVault shares.
+    //     uint256 bvShareDelta = boringVaultShare.balanceOf(address(this));
+    //     ERC4626(address(offer)).redeem(offerReceived, address(this), address(this));
+    //     bvShareDelta = boringVaultShare.balanceOf(address(this)) - bvShareDelta;
 
-        // Make sure we received BoringVault shares.
-        if (bvShareDelta == 0) {
-            revert AtomicSolverV4___NoBoringVaultSharesReceived();
-        }
+    //     // Make sure we received BoringVault shares.
+    //     if (bvShareDelta == 0) {
+    //         revert AtomicSolverV4___NoBoringVaultSharesReceived();
+    //     }
 
-        // Withdraw the BoringVault shares, sending assets to solver.
-        teller.bulkWithdraw(want, bvShareDelta, minimumAssetsOut, solver);
+    //     // Withdraw the BoringVault shares, sending assets to solver.
+    //     teller.bulkWithdraw(want, bvShareDelta, minimumAssetsOut, solver);
 
-        // Transfer required assets from solver.
-        want.safeTransferFrom(solver, address(this), wantApprovalAmount);
+    //     // Transfer required assets from solver.
+    //     want.safeTransferFrom(solver, address(this), wantApprovalAmount);
 
-        // Approve queue to spend wantApprovalAmount.
-        want.safeApprove(queue, wantApprovalAmount);
-    }
+    //     // Approve queue to spend wantApprovalAmount.
+    //     want.safeApprove(queue, wantApprovalAmount);
+    // }
 }
