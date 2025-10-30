@@ -676,9 +676,6 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         (bytes32[] memory requestIds,) = atomicQueue.getExistingWithdrawRequests();
         assertEq(requestIds.length, 1);
 
-        // Setup solver
-        address solver = address(atomicSolverV4);
-
         // Warp past maturity time for whitelisted user
         vm.warp(block.timestamp + atomicQueue.maturityTime() / 10 + 1);
 
@@ -807,7 +804,6 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
     function testDiscount() external {
         vm.startPrank(user);
         uint256 discount = 500; // 0.05%
-        console.log("set discount");
         atomicQueue.setDiscount(discount);
 
         uint256 userShareAmountBefore = boringVault.balanceOf(user);

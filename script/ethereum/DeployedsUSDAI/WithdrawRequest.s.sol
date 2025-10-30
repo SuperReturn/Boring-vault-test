@@ -68,12 +68,14 @@ contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
             AtomicRequest memory request = AtomicRequest({
                 deadline: uint64(block.timestamp + 10000 minutes), // 10 minutes deadline
                 creationTime: uint64(block.timestamp),
-                atomicPrice: uint88(1e6),
-                offerAmount: uint96(withdrawShares)
+                offerAmount: uint96(withdrawShares),
+                user: user,
+                offer: address(boringVault),
+                want: address(USDAI)
             });
 
             // Send request to queue
-            queue.updateAtomicRequest(ERC20(address(boringVault)), USDAI, request);
+            queue.updateAtomicRequest(request);
 
             console.log("Withdrawal request created");
 
