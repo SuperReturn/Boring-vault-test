@@ -31,7 +31,7 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
 
     uint8 private _decimals;
 
-    uint256 public maxTotalSupply = 10_000_000;
+    uint256 public maxTotalSupply = 10_000_000 * 1e6;
 
     //============================== EVENTS ===============================
 
@@ -59,6 +59,7 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
         owner = _owner;
         authority = _authority;
         _decimals = decimals_;
+        maxTotalSupply = 10_000_000 * 1e6;
     }
 
     function _authorizeUpgrade(address newImplementation)
