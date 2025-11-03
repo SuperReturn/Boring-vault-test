@@ -17,6 +17,7 @@ contract ChainValues {
     string public constant base = "base";
 
     string public constant sepolia = "sepolia";
+    string public constant katanabokuto = "katanabokuto";
 
     // Bridging constants.
     uint64 public constant ccipArbitrumChainSelector = 4949039107694359620;
@@ -64,8 +65,9 @@ contract ChainValues {
         _addBaseValues();
         _addArbitrumValues();
         _addOptimismValues();
-
+        // Add testnet values
         _addSepoliaValues();
+        _addKatanaBokutoValues();
     }
 
     function _addMainnetValues() private {
@@ -928,5 +930,11 @@ contract ChainValues {
         values[sepolia]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
         values[sepolia]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
         values[sepolia]["USDC"] = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238.toBytes32();
+    }
+    function _addKatanaBokutoValues() private {
+        values[katanabokuto]["deployerAddress"] = 0x8F7a43819df55B1181C1Bd15948b0be9eF2fD385.toBytes32();
+        values[katanabokuto]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
+        values[katanabokuto]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
+        values[katanabokuto]["USDC"] = 0xc2a4C310F2512A17Ac0047cf871aCAed3E62bB4B.toBytes32(); // vdusdc
     }
 }
