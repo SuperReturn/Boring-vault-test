@@ -27,7 +27,8 @@ katanabokuto = "${KATANA_BOKUTO_RPC_URL}"
 # arbitrum = { key = "${ARBISCAN_KEY}" }
 # optimism = { key = "${OPTIMISMSCAN_KEY}" }
 # base = { key = "${BASESCAN_KEY}" }
-sepolia = { key = "${SEPOLIA_KEY}", chain = 11155111, url = "https://api.etherscan.io/v2/api" }
+#sepolia = { key = "${SEPOLIA_KEY}", chain = 11155111, url = "https://api.etherscan.io/v2/api" }
+sepolia = { key = "${SEPOLIA_KEY}", chain = 11155111, url = "https://api.etherscan.io/v2/api?chainid=11155111" }
 katanabokuto = { key = "${KATANA_BOKUTO_KEY}", chain = 737373, url = "https://explorer-bokuto.katanarpc.com/api" }
 
 [fmt]

@@ -926,10 +926,12 @@ contract ChainValues {
         values[optimism]["velodrome_Weth_Wsteth_v3_1_gauge"] = 0xb2218A2cFeF38Ca30AE8C88B41f2E2BdD9347E3e.toBytes32();
     }
     function _addSepoliaValues() private {
-        values[sepolia]["deployerAddress"] = 0x8E74f230a4E22adcD045EA9e482cAEe37BBE360c.toBytes32();
+        //values[sepolia]["deployerAddress"] = 0x8E74f230a4E22adcD045EA9e482cAEe37BBE360c.toBytes32();
+        values[sepolia]["deployerAddress"] = 0x8F7a43819df55B1181C1Bd15948b0be9eF2fD385.toBytes32();
         values[sepolia]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
         values[sepolia]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
-        values[sepolia]["USDC"] = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238.toBytes32();
+        //values[sepolia]["USDC"] = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238.toBytes32();
+        values[sepolia]["USDC"] = 0x22b592e31BC672DcF5DEAEa8e2dFe54254D0F855.toBytes32();
     }
     function _addKatanaBokutoValues() private {
         values[katanabokuto]["deployerAddress"] = 0x8F7a43819df55B1181C1Bd15948b0be9eF2fD385.toBytes32();
