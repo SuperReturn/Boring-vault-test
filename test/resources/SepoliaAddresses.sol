@@ -6,7 +6,8 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 contract SepoliaAddresses {
     // Liquid Ecosystem
     //address public deployerAddress = 0x5D2049062E081065d08F9Df0743Cf9FBaD7508Aa;
-    address public deployerAddress = 0x8F7a43819df55B1181C1Bd15948b0be9eF2fD385;
+    //address public deployerAddress = 0x8F7a43819df55B1181C1Bd15948b0be9eF2fD385;
+    address public deployerAddress = 0xdcA3cd3F0EC38D1F55E3cEbF2Ec717b35eCacA20;
     address public dev0Address = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
     address public dev1Address = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
     // address public liquidV1PriceRouter = 0x693799805B502264f9365440B93C113D86a4fFF5;
@@ -17,5 +18,6 @@ contract SepoliaAddresses {
 
     //ERC20 public USDC = ERC20(0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238);
     ERC20 public USDC = ERC20(0x22b592e31BC672DcF5DEAEa8e2dFe54254D0F855);
-    ERC20 public USDAI = ERC20(0xBD004e02D00AA0b23FE9224D1902A4EEc94952e4);
+    //ERC20 public USDAI = ERC20(0xBD004e02D00AA0b23FE9224D1902A4EEc94952e4);
+    ERC20 public USDAI = ERC20(0x0bC37e70b079f4D99Bc76452e90647721c508764);
 }

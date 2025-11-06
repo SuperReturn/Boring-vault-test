@@ -927,7 +927,8 @@ contract ChainValues {
     }
     function _addSepoliaValues() private {
         //values[sepolia]["deployerAddress"] = 0x8E74f230a4E22adcD045EA9e482cAEe37BBE360c.toBytes32();
-        values[sepolia]["deployerAddress"] = 0x8F7a43819df55B1181C1Bd15948b0be9eF2fD385.toBytes32();
+        //values[sepolia]["deployerAddress"] = 0x8F7a43819df55B1181C1Bd15948b0be9eF2fD385.toBytes32();
+        values[sepolia]["deployerAddress"] = 0xdcA3cd3F0EC38D1F55E3cEbF2Ec717b35eCacA20.toBytes32();
         values[sepolia]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
         values[sepolia]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
         //values[sepolia]["USDC"] = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238.toBytes32();
