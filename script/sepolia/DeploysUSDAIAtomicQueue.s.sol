@@ -80,15 +80,17 @@ contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.addToWhitelist.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.removeFromWhitelist.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.updateWhitelistMaturityDivisor.selector, true);
-        rolesAuthority.setRoleCapability(INSTANT_WITHDRAW_ROLE, address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
+        // rolesAuthority.setRoleCapability(INSTANT_WITHDRAW_ROLE, address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicSolver), AtomicSolverV4.finishSolve.selector, true);
         rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicSolver), AtomicSolverV4.rescueTokens.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.updateAtomicRequest.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.cancelAtomicRequest.selector, true);
+        rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
         rolesAuthority.setPublicCapability(address(atomicSolver), AtomicSolverV4.redeemSolve.selector, true);
 
         // extra setting
         atomicQueue.setMaturityTime(3 minutes);
+        atomicQueue.setDiscount(0);
 
         // extra role setting for other contracts
         RolesAuthority vaultRolesAuthority = RolesAuthority(deployer.getAddress(sUsdaiVaultRolesAuthorityName));

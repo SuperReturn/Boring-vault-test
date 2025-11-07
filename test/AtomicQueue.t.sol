@@ -346,8 +346,6 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault)), 1_000e6);
         skip(atomicQueue.maturityTime() + 1);
 
-        // Approve solver
-        USDC.approve(address(atomicSolverV4), type(uint256).max);
 
         atomicSolverV4.redeemSolve(
             atomicQueue, 0, type(uint256).max, teller, req
@@ -821,9 +819,6 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
 
         (bytes32[] memory requestIds,) = atomicQueue.getExistingWithdrawRequests();
 
-        // Approve solver
-        USDC.approve(address(atomicSolverV4), type(uint256).max);
-
         vm.warp(block.timestamp + atomicQueue.maturityTime() + 1);
         // the request should be updated to the new atomic price, so don't directly use the `req` above
         AtomicRequest memory newReq = atomicQueue.getAtomicRequestById(requestIds[0]);
@@ -866,7 +861,6 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         assertEq(boringVault.balanceOf(user), userUSDCInitialBalance - 1e6);
 
         // all the remaining requests should can still be solved
-        USDC.approve(address(atomicSolverV4), type(uint256).max);
         atomicSolverV4.redeemSolve(
             atomicQueue, 0, type(uint256).max, teller, req1
         );
