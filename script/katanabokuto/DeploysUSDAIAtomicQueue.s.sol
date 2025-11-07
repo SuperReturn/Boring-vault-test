@@ -8,7 +8,7 @@ import {Deployer} from "src/helper/Deployer.sol";
 import {AtomicQueue} from "src/atomic-queue/AtomicQueue.sol";
 import {AtomicSolverV4} from "src/atomic-queue/AtomicSolverV4.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {SepoliaAddresses} from "test/resources/SepoliaAddresses.sol";
+import {KatanaBokutoAddresses} from "test/resources/KatanaBokutoAddresses.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -17,7 +17,7 @@ import "forge-std/StdJson.sol";
  *  source .env && forge script script/DeployAtomicQueue.s.sol:DeployAtomicQueueScript --with-gas-price 70000000 --evm-version london --broadcast --etherscan-api-key $OPTIMISMSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
+contract DeployAtomicQueueScript is Script, ContractNames, KatanaBokutoAddresses {
     uint256 public privateKey;
 
     address public devOwner = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
@@ -40,7 +40,7 @@ contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
 
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
-        vm.createSelectFork("sepolia");
+        vm.createSelectFork("katanabokuto");
     }
 
     function run() external {
@@ -80,17 +80,15 @@ contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.addToWhitelist.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.removeFromWhitelist.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.updateWhitelistMaturityDivisor.selector, true);
-        // rolesAuthority.setRoleCapability(INSTANT_WITHDRAW_ROLE, address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
+        rolesAuthority.setRoleCapability(INSTANT_WITHDRAW_ROLE, address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicSolver), AtomicSolverV4.finishSolve.selector, true);
         rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicSolver), AtomicSolverV4.rescueTokens.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.updateAtomicRequest.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.cancelAtomicRequest.selector, true);
-        rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
         rolesAuthority.setPublicCapability(address(atomicSolver), AtomicSolverV4.redeemSolve.selector, true);
 
         // extra setting
         atomicQueue.setMaturityTime(3 minutes);
-        atomicQueue.setDiscount(0);
 
         // extra role setting for other contracts
         RolesAuthority vaultRolesAuthority = RolesAuthority(deployer.getAddress(sUsdaiVaultRolesAuthorityName));

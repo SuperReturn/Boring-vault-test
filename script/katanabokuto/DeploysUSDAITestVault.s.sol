@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import {DeployArcticArchitecture, ERC20, Deployer} from "script/ArchitectureDeployments/DeployArcticArchitecture.sol";
 import {AddressToBytes32Lib} from "src/helper/AddressToBytes32Lib.sol";
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
+import {KatanaBokutoAddresses} from "test/resources/KatanaBokutoAddresses.sol";
 
 // Import Decoder and Sanitizer to deploy.
 import {BaseDecoderAndSanitizer} from
@@ -13,20 +13,20 @@ import {BaseDecoderAndSanitizer} from
  *  source .env && forge script script/ArchitectureDeployments/DeployTestVault.s.sol:DeployTestVaultScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployTestVaultScript is DeployArcticArchitecture, MainnetAddresses {
+contract DeployTestVaultScript is DeployArcticArchitecture, KatanaBokutoAddresses {
     using AddressToBytes32Lib for address;
 
     uint256 public privateKey;
 
     // Deployment parameters
-    string public boringVaultName = "sSuperUSD boring vault";
+    string public boringVaultName = "sSuperUSD";
     string public boringVaultSymbol = "sSuperUSD";
     uint8 public boringVaultDecimals = 6;
     address public owner = dev0Address;
 
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
-        vm.createSelectFork("mainnet");
+        vm.createSelectFork("katanabokuto");
     }
 
     function run() external {
@@ -49,7 +49,7 @@ contract DeployTestVaultScript is DeployArcticArchitecture, MainnetAddresses {
         configureDeployment.saveDeploymentDetails = true;
         configureDeployment.deployerAddress = deployerAddress;
         // configureDeployment.balancerVault = balancerVault;
-        configureDeployment.WETH = address(WETH);
+        // configureDeployment.WETH = address(WETH);
 
         // Save deployer.
         deployer = Deployer(configureDeployment.deployerAddress);
@@ -69,7 +69,7 @@ contract DeployTestVaultScript is DeployArcticArchitecture, MainnetAddresses {
 
         // Define Decoder and Sanitizer deployment details.
         bytes memory creationCode = type(BaseDecoderAndSanitizer).creationCode;
-        bytes memory constructorArgs = abi.encode(previoussSuperUSDVault);
+        bytes memory constructorArgs = abi.encode(deployer.getAddress(names.boringVault));
 
         // Setup extra deposit assets.
 
@@ -82,20 +82,20 @@ contract DeployTestVaultScript is DeployArcticArchitecture, MainnetAddresses {
 
         vm.startBroadcast(privateKey);
 
-        _deploy(
-            "sSuperUSDMainnetDeployment.json",
-            owner,
-            boringVaultName,
-            boringVaultSymbol,
-            boringVaultDecimals,
-            creationCode,
-            constructorArgs,
-            delayedWithdrawFeeAddress,
-            allowPublicDeposits,
-            allowPublicWithdraws,
-            shareLockPeriod,
-            dev1Address
-        );
+        _deploy(DeployParams({
+            deploymentFileName: "sSuperUSDKatanaBokutoDeployment.json",
+            owner: owner,
+            boringVaultName: boringVaultName,
+            boringVaultSymbol: boringVaultSymbol,
+            boringVaultDecimals: boringVaultDecimals,
+            decoderAndSanitizerCreationCode: creationCode,
+            decoderAndSanitizerConstructorArgs: constructorArgs,
+            delayedWithdrawFeeAddress: delayedWithdrawFeeAddress,
+            allowPublicDeposits: allowPublicDeposits,
+            allowPublicWithdraws: allowPublicWithdraws,
+            shareLockPeriod: shareLockPeriod,
+            developmentAddress: dev1Address
+        }));
 
         vm.stopBroadcast();
     }

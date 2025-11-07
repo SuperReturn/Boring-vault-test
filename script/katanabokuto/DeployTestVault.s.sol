@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import {DeployArcticArchitecture2, ERC20, Deployer} from "script/ArchitectureDeployments/DeployArcticArchitecture2.sol";
 import {AddressToBytes32Lib} from "src/helper/AddressToBytes32Lib.sol";
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
+import {KatanaBokutoAddresses} from "test/resources/KatanaBokutoAddresses.sol";
 
 // Import Decoder and Sanitizer to deploy.
 import {ITBPositionDecoderAndSanitizer} from
@@ -13,23 +13,20 @@ import {ITBPositionDecoderAndSanitizer} from
  *  source .env && forge script script/ArchitectureDeployments/DeployTestVault.s.sol:DeployTestVaultScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployTestVaultScript is DeployArcticArchitecture2, MainnetAddresses {
+contract DeployTestVaultScript is DeployArcticArchitecture2, KatanaBokutoAddresses {
     using AddressToBytes32Lib for address;
 
     uint256 public privateKey;
 
     // Deployment parameters
-    string public boringVaultName = "SuperUSD boring vault";
+    string public boringVaultName = "SuperUSD";
     string public boringVaultSymbol = "SuperUSD";
     uint8 public boringVaultDecimals = 6;
     address public owner = dev0Address;
 
-    // address roleAuthorityAddress = 0x3340D54fC3ce205B39960cF041D668AF3bdEffb9;
-    // address vaultAddress = 0x874bCD1AfDfb0864F9362b79B61e37b5c1c9d574;
-
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
-        vm.createSelectFork("mainnet");
+        vm.createSelectFork("katanabokuto");
     }
 
     function run() external {
@@ -52,7 +49,7 @@ contract DeployTestVaultScript is DeployArcticArchitecture2, MainnetAddresses {
         configureDeployment.saveDeploymentDetails = true;
         configureDeployment.deployerAddress = deployerAddress;
         // configureDeployment.balancerVault = balancerVault;
-        configureDeployment.WETH = address(WETH);
+        // configureDeployment.WETH = address(WETH);
 
         // Save deployer.
         deployer = Deployer(configureDeployment.deployerAddress);
@@ -72,20 +69,22 @@ contract DeployTestVaultScript is DeployArcticArchitecture2, MainnetAddresses {
 
         // Define Decoder and Sanitizer deployment details.
         bytes memory creationCode = type(ITBPositionDecoderAndSanitizer).creationCode;
-        bytes memory constructorArgs = abi.encode(previousVault);
+        // bytes memory constructorArgs = abi.encode(previousVault);
+        bytes memory constructorArgs =
+            abi.encode(deployer.getAddress(names.boringVault));
 
-        // Setup extra deposit assets.
-        depositAssets.push(
-            DepositAsset({
-                asset: USDT,
-                isPeggedToBase: false,
-                rateProvider: address(0x2A25aF4dFE77b9CB3C426CDa86baa76c16547CE5),
-                genericRateProviderName: "USDT",
-                target: address(0),
-                selector: bytes4(0),
-                params: [bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0)]
-            })
-        );
+        // // Setup extra deposit assets.
+        // depositAssets.push(
+        //     DepositAsset({
+        //         asset: USDT,
+        //         isPeggedToBase: false,
+        //         rateProvider: address(0x2A25aF4dFE77b9CB3C426CDa86baa76c16547CE5),
+        //         genericRateProviderName: "USDT",
+        //         target: address(0),
+        //         selector: bytes4(0),
+        //         params: [bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0)]
+        //     })
+        // );
 
         // Setup withdraw assets.
         withdrawAssets.push(
@@ -98,15 +97,15 @@ contract DeployTestVaultScript is DeployArcticArchitecture2, MainnetAddresses {
             })
         );
 
-        withdrawAssets.push(
-            WithdrawAsset({
-                asset: USDT,
-                withdrawDelay: 3 minutes,
-                completionWindow: 7 days,
-                withdrawFee: 0,
-                maxLoss: 0.01e4
-            })
-        );
+        // withdrawAssets.push(
+        //     WithdrawAsset({
+        //         asset: USDT,
+        //         withdrawDelay: 3 minutes,
+        //         completionWindow: 7 days,
+        //         withdrawFee: 0,
+        //         maxLoss: 0.01e4
+        //     })
+        // );
 
         bool allowPublicDeposits = true;
         bool allowPublicWithdraws = true;
@@ -115,20 +114,20 @@ contract DeployTestVaultScript is DeployArcticArchitecture2, MainnetAddresses {
 
         vm.startBroadcast(privateKey);
 
-        _deploy(
-            "SuperUSDMainnetDeployment.json",
-            owner,
-            boringVaultName,
-            boringVaultSymbol,
-            boringVaultDecimals,
-            creationCode,
-            constructorArgs,
-            delayedWithdrawFeeAddress,
-            allowPublicDeposits,
-            allowPublicWithdraws,
-            shareLockPeriod,
-            dev1Address
-        );
+        _deploy(DeployParams({
+            deploymentFileName: "SuperUSDKatanaBokutoDeployment.json",
+            owner: owner,
+            boringVaultName: boringVaultName,
+            boringVaultSymbol: boringVaultSymbol,
+            boringVaultDecimals: boringVaultDecimals,
+            decoderAndSanitizerCreationCode: creationCode,
+            decoderAndSanitizerConstructorArgs: constructorArgs,
+            delayedWithdrawFeeAddress: delayedWithdrawFeeAddress,
+            allowPublicDeposits: allowPublicDeposits,
+            allowPublicWithdraws: allowPublicWithdraws,
+            shareLockPeriod: shareLockPeriod,
+            developmentAddress: dev1Address
+        }));
 
         vm.stopBroadcast();
     }
