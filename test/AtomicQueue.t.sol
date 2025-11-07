@@ -536,6 +536,30 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         vm.stopPrank();
     }
 
+    function testInsufficientBalanceInUserWalletOnUpdateReverts() external {
+        vm.startPrank(user);
+        AtomicRequest memory req = AtomicRequest({
+            deadline: uint64(block.timestamp + 1000),
+            creationTime: uint64(block.timestamp),
+            offerAmount: uint96(userUSDCInitialBalance - 1),
+            user: user,
+            offer: address(boringVault),
+            want: address(USDC)
+        });
+        atomicQueue.updateAtomicRequest(req);
+        req = AtomicRequest({
+            deadline: uint64(block.timestamp + 1000),
+            creationTime: uint64(block.timestamp),
+            offerAmount: uint96(2),
+            user: user,
+            offer: address(boringVault),
+            want: address(USDC)
+        });
+        vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__InsufficientBalanceInUserWallet.selector, user, userUSDCInitialBalance + 1, userUSDCInitialBalance));
+        atomicQueue.updateAtomicRequest(req);
+        vm.stopPrank();
+    }
+
     function testCancelByNonOwnerReverts() external {
         vm.startPrank(user);
         AtomicRequest memory req = AtomicRequest({

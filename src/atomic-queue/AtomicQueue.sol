@@ -64,6 +64,12 @@ contract AtomicQueue is ReentrancyGuard, Auth {
     mapping(address => bool) public whitelist;
 
     /**
+     * @notice Mapping to track the total amount of 'offer' tokens in progress for withdrawal requests for each user.
+     * @dev It is incremented when a new request is submitted and decremented when the request is fulfilled or cancelled.
+     */
+    mapping(address => uint256) public userWithdrawInProgressAmount;
+
+    /**
      * @notice The accountant contract to use for withdrawal
      */
     AccountantWithRateProviders public immutable accountant;
@@ -104,6 +110,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
     error AtomicQueue__RequestNotMature(address user);
     error AtomicQueue__MinimumAssetsNotMet();
     error AtomicQueue__InstantWithdrawShortfall(uint256 expected, uint256 actual);
+    error AtomicQueue__InsufficientBalanceInUserWallet(address user, uint256 required, uint256 available);
     //============================== EVENTS ===============================
     /**
      * @notice Emitted when `setMaturityTime` is called.
@@ -392,11 +399,11 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         userRequest.creationTime = uint64(block.timestamp);
 
         // Validate basic fields at submission time
-
         if (userRequest.offerAmount == 0) revert AtomicQueue__OfferAmountIsZero();
         if (userRequest.offer == address(0)) revert AtomicQueue__OfferAddressIsZero();
         if (userRequest.want == address(0)) revert AtomicQueue__WantAddressIsZero();
         if (userRequest.offerAmount > ERC20(userRequest.offer).balanceOf(userRequest.user)) revert AtomicQueue__InsufficientBalance();
+        if (userWithdrawInProgressAmount[userRequest.user] + userRequest.offerAmount > ERC20(userRequest.offer).balanceOf(userRequest.user)) revert AtomicQueue__InsufficientBalanceInUserWallet(userRequest.user, userWithdrawInProgressAmount[userRequest.user] + userRequest.offerAmount, ERC20(userRequest.offer).balanceOf(userRequest.user));
         if (block.timestamp > userRequest.deadline) revert AtomicQueue__DeadlineExpired();
 
         bytes32 requestId = keccak256(abi.encode(userRequest));
@@ -404,6 +411,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
 
         onChainWithdraws[requestId] = userRequest;
         withdrawInProgressAmount[userRequest.offer] += userRequest.offerAmount;
+        userWithdrawInProgressAmount[userRequest.user] += userRequest.offerAmount;
 
         emit AtomicRequestUpdated(
             requestId,
@@ -427,6 +435,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         bytes32 requestId = keccak256(abi.encode(userRequest));
         if (!_existingWithdrawRequests.contains(requestId)) revert AtomicQueue__RemovedRequest();
         withdrawInProgressAmount[userRequest.offer] -= userRequest.offerAmount;
+        userWithdrawInProgressAmount[userRequest.user] -= userRequest.offerAmount;
 
         _existingWithdrawRequests.remove(requestId);
         emit AtomicRequestCancelled(
@@ -576,6 +585,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
 
         // Decrease the withdraw in progress amount
         withdrawInProgressAmount[address(offer)] -= request.offerAmount;
+        userWithdrawInProgressAmount[user] -= request.offerAmount;
 
         bytes32 requestId = keccak256(abi.encode(request));
         // Emit event
