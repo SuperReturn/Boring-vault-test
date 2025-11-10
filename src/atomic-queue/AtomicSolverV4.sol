@@ -92,7 +92,7 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
         bytes memory runData = abi.encode(SolveType.REDEEM, msg.sender, minimumAssetsOut, maxAssets, teller);
 
         // Solve for `users`.
-        queue.solve(runData, address(this), request);
+        queue.solve(runData, request);
     }
 
     // /**
@@ -159,6 +159,15 @@ contract AtomicSolverV4 is IAtomicSolver, Auth, Multicall {
         // } else {
         //     revert AtomicSolverV4___FailedToSolve();
         // }
+    }
+
+    function approveOfferForQueue(
+        address queue,
+        AtomicRequest calldata request
+    ) external requiresAuth {
+        ERC20 offer = ERC20(request.offer);
+        offer.safeApprove(queue, 0);
+        offer.safeApprove(queue, request.offerAmount);
     }
 
     //============================== HELPER FUNCTIONS ===============================

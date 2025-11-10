@@ -64,12 +64,6 @@ contract AtomicQueue is ReentrancyGuard, Auth {
     mapping(address => bool) public whitelist;
 
     /**
-     * @notice Mapping to track the total amount of 'offer' tokens in progress for withdrawal requests for each user.
-     * @dev It is incremented when a new request is submitted and decremented when the request is fulfilled or cancelled.
-     */
-    mapping(address => uint256) public userWithdrawInProgressAmount;
-
-    /**
      * @notice The accountant contract to use for withdrawal
      */
     AccountantWithRateProviders public immutable accountant;
@@ -100,9 +94,8 @@ contract AtomicQueue is ReentrancyGuard, Auth {
     error AtomicQueue__OfferAddressIsZero();
     error AtomicQueue__WantAddressIsZero();
     error AtomicQueue__InsufficientBalance();
-    error AtomicQueue__InsufficientAllowance();
     error AtomicQueue__DeadlineExpired();
-    error AtomicQueue__SafeRequestAccountantOfferMismatch();
+    error AtomicQueue__RequestAccountantOfferMismatch(address offer, address vault);
     error AtomicQueue__BadUser();
     error AtomicQueue__BoringVaultTellerMismatch(address vault, address teller);
     error AtomicQueue__ZeroOfferAmount(address user);
@@ -111,6 +104,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
     error AtomicQueue__MinimumAssetsNotMet();
     error AtomicQueue__InstantWithdrawShortfall(uint256 expected, uint256 actual);
     error AtomicQueue__InsufficientBalanceInUserWallet(address user, uint256 required, uint256 available);
+    error AtomicQueue__UnauthorizedSolver(address caller);
     //============================== EVENTS ===============================
     /**
      * @notice Emitted when `setMaturityTime` is called.
@@ -188,16 +182,27 @@ contract AtomicQueue is ReentrancyGuard, Auth {
      */
     event DiscountUpdated(uint256 newDiscount);
 
-    //============================== IMMUTABLES ===============================
+    /**
+     * @notice Emitted when `setSolver` is called.
+     */
+    event SolverUpdated(address newSolver);
+
+    //============================== VARIABLES ===============================
+    /**
+     * @notice The solver contract to use for solving
+     */
+    IAtomicSolver public solver;
 
     /**
      * @notice Constructor
      * @param _owner The owner of the contract
      * @param _authority The authority of the contract
      * @param _accountant The accountant contract to use for withdrawal
+     * @param _solver The solver contract to use for solving
      */
-    constructor(address _owner, Authority _authority, address _accountant) Auth(_owner, _authority) {
+    constructor(address _owner, Authority _authority, address _accountant, address _solver) Auth(_owner, _authority) {
         accountant = AccountantWithRateProviders(_accountant);
+        solver = IAtomicSolver(_solver);
     }
 
     //============================== ADMIN FUNCTIONS ===============================
@@ -253,6 +258,46 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         if (newDivisor == 0) revert AtomicQueue__BadWhitelistDivisor();
         whitelistMaturityDivisor = newDivisor;
         emit WhitelistMaturityDivisorUpdated(newDivisor);
+    }
+
+    /**
+     * @notice Allows the owner to update the solver contract
+     * @dev Callable by MULTISIG_ROLE.
+     * @param newSolver The new solver contract address.
+     */
+    function setSolver(address newSolver) external requiresAuth {
+        solver = IAtomicSolver(newSolver);
+        emit SolverUpdated(newSolver);
+    }
+
+    /**
+     * @notice Allows the admin to cancel multiple withdraw requests.
+     * @dev Callable by MULTISIG_ROLE.
+     * @param userRequests The array of user requests to cancel.
+     */
+    function cancelAtomicRequestByAdmin(AtomicRequest[] calldata userRequests) external requiresAuth {
+        for (uint256 i = 0; i < userRequests.length; ++i) {
+            AtomicRequest calldata userRequest = userRequests[i];
+            bytes32 requestId = keccak256(abi.encode(userRequest));
+            if (!_existingWithdrawRequests.contains(requestId)) revert AtomicQueue__RemovedRequest();
+            withdrawInProgressAmount[userRequest.offer] -= userRequest.offerAmount;
+
+            _existingWithdrawRequests.remove(requestId);
+
+            // Transfer offer shares from solver contract to user
+            IAtomicSolver(solver).approveOfferForQueue(address(this), userRequest);
+            ERC20(userRequest.offer).safeTransferFrom(address(solver), userRequest.user, userRequest.offerAmount);
+
+            emit AtomicRequestCancelled(
+                requestId,
+                userRequest.user,
+                userRequest.offer,
+                userRequest.want,
+                userRequest.offerAmount,
+                userRequest.deadline,
+                block.timestamp
+            );
+        }
     }
 
     //============================== VIEW FUNCTIONS ===============================
@@ -372,10 +417,6 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         // Validate want address is not zero.
         if (userRequest.want == address(0)) revert AtomicQueue__WantAddressIsZero();
 
-        // Validate amount.
-        if (userRequest.offerAmount > offer.balanceOf(requestUser)) revert AtomicQueue__InsufficientBalance();
-        // Validate approval.
-        if (offer.allowance(requestUser, address(this)) < userRequest.offerAmount) revert AtomicQueue__InsufficientAllowance();
         // Validate deadline.
         if (block.timestamp > userRequest.deadline) revert AtomicQueue__DeadlineExpired();
     }
@@ -389,7 +430,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
      * @param userRequest the users request
      */
     function updateAtomicRequest(AtomicRequest memory userRequest) external nonReentrant returns (bytes32) {
-        if (userRequest.offer != address(accountant.vault())) revert AtomicQueue__SafeRequestAccountantOfferMismatch();
+        if (userRequest.offer != address(accountant.vault())) revert AtomicQueue__RequestAccountantOfferMismatch(address(userRequest.offer), address(accountant.vault()));
         if (userRequest.user != msg.sender) revert AtomicQueue__BadUser();
 
         // try to gate rate from the accountant, should revert if the want token is not supported
@@ -403,7 +444,6 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         if (userRequest.offer == address(0)) revert AtomicQueue__OfferAddressIsZero();
         if (userRequest.want == address(0)) revert AtomicQueue__WantAddressIsZero();
         if (userRequest.offerAmount > ERC20(userRequest.offer).balanceOf(userRequest.user)) revert AtomicQueue__InsufficientBalance();
-        if (userWithdrawInProgressAmount[userRequest.user] + userRequest.offerAmount > ERC20(userRequest.offer).balanceOf(userRequest.user)) revert AtomicQueue__InsufficientBalanceInUserWallet(userRequest.user, userWithdrawInProgressAmount[userRequest.user] + userRequest.offerAmount, ERC20(userRequest.offer).balanceOf(userRequest.user));
         if (block.timestamp > userRequest.deadline) revert AtomicQueue__DeadlineExpired();
 
         bytes32 requestId = keccak256(abi.encode(userRequest));
@@ -411,7 +451,9 @@ contract AtomicQueue is ReentrancyGuard, Auth {
 
         onChainWithdraws[requestId] = userRequest;
         withdrawInProgressAmount[userRequest.offer] += userRequest.offerAmount;
-        userWithdrawInProgressAmount[userRequest.user] += userRequest.offerAmount;
+
+        // Transfer offer shares from user to solver contract
+        ERC20(userRequest.offer).safeTransferFrom(userRequest.user, address(solver), userRequest.offerAmount);
 
         emit AtomicRequestUpdated(
             requestId,
@@ -435,9 +477,13 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         bytes32 requestId = keccak256(abi.encode(userRequest));
         if (!_existingWithdrawRequests.contains(requestId)) revert AtomicQueue__RemovedRequest();
         withdrawInProgressAmount[userRequest.offer] -= userRequest.offerAmount;
-        userWithdrawInProgressAmount[userRequest.user] -= userRequest.offerAmount;
 
         _existingWithdrawRequests.remove(requestId);
+
+        // Transfer offer shares from solver contract to user
+        IAtomicSolver(solver).approveOfferForQueue(address(this), userRequest);
+        ERC20(userRequest.offer).safeTransferFrom(address(solver), userRequest.user, userRequest.offerAmount);
+
         emit AtomicRequestCancelled(
             requestId,
             userRequest.user,
@@ -471,7 +517,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         
         // Get vault from accountant
         BoringVault vault = accountant.vault();
-        if (address(offer) != address(vault)) revert AtomicQueue__SafeRequestAccountantOfferMismatch();
+        if (address(offer) != address(vault)) revert AtomicQueue__RequestAccountantOfferMismatch(address(offer), address(vault));
         if (address(offer) != address(teller.vault())) revert AtomicQueue__BoringVaultTellerMismatch(address(offer), address(teller));
         uint256 ONE_SHARE = 10 ** offer.decimals();
         
@@ -522,6 +568,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         }
 
         want.safeTransfer(msg.sender, assetOutWithDiscount);
+        assetsOut = assetOutWithDiscount;
 
         emit InstantWithdraw(
             msg.sender,
@@ -542,12 +589,10 @@ contract AtomicQueue is ReentrancyGuard, Auth {
      * @dev It is very likely `solve` TXs will be front run if broadcasted to public mem pools,
      *      so solvers should use private mem pools.
      * @param runData extra data that is passed back to solver when `finishSolve` is called
-     * @param solver the contract address to make `finishSolve` callback to
      * @param request the atomic request to solve
      */
     function solve(
         bytes calldata runData,
-        address solver,
         AtomicRequest calldata request
     ) external nonReentrant {
         ERC20 offer = ERC20(request.offer);
@@ -568,24 +613,26 @@ contract AtomicQueue is ReentrancyGuard, Auth {
             revert AtomicQueue__RequestNotMature(user);
         }
 
+        // Check if the caller is the solver
+        if (msg.sender != address(solver)) revert AtomicQueue__UnauthorizedSolver(msg.sender);
+
         uint256 safeRate = accountant.getRateInQuoteSafe(ERC20(request.want));
         uint256 safeAtomicPriceWithDiscount = safeRate.mulDivDown(DISCOUNT_DENOMINATOR - discount, DISCOUNT_DENOMINATOR);
 
         // Calculate want assets needed
         uint256 assetsForWant = _calculateAssetAmount(request.offerAmount, safeAtomicPriceWithDiscount, offerDecimals);
 
-        // Transfer offer shares from user to solver contract
-        offer.safeTransferFrom(user, solver, request.offerAmount);
+        // // Transfer offer shares from user to solver contract
+        // offer.safeTransferFrom(user, solver, request.offerAmount);
 
         // Call solver contract to finish the solve
         IAtomicSolver(solver).finishSolve(runData, msg.sender, offer, want, request.offerAmount, assetsForWant, address(accountant.vault()));
 
         // Transfer want assets from solver contract to user
-        want.safeTransferFrom(solver, user, assetsForWant);
+        want.safeTransferFrom(address(solver), user, assetsForWant);
 
         // Decrease the withdraw in progress amount
         withdrawInProgressAmount[address(offer)] -= request.offerAmount;
-        userWithdrawInProgressAmount[user] -= request.offerAmount;
 
         bytes32 requestId = keccak256(abi.encode(request));
         // Emit event
