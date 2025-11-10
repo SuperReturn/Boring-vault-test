@@ -43,10 +43,6 @@ contract SolveWithdrawRequestScript is Script, SepoliaAddresses, ContractNames, 
         (bytes32[] memory requestIds, AtomicRequest[] memory requests) = queue.getExistingWithdrawRequestsByUser(user);
         require(requestIds.length > 0, "No requests found");
         
-
-        // Make sure solver has enough USDAI approved
-        USDAI.approve(address(solver), type(uint256).max);
-        
         // Call redeemSolve
         solver.redeemSolve(
             queue,

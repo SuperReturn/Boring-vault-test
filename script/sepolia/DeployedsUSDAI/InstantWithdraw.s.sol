@@ -39,7 +39,7 @@ contract sUSDAIInstantWithdrawScript is Script, SepoliaAddresses, ContractNames,
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         address user = vm.addr(privateKey);
         vm.startBroadcast(privateKey);
-        
+        ERC20(address(boringVault)).approve(address(queue), 1e5);
         queue.instantWithdraw(ERC20(address(boringVault)), USDAI, 1e5, 0, teller);
         
         vm.stopBroadcast();

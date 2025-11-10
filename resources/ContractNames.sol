@@ -24,8 +24,8 @@ contract ContractNames {
     string public constant UsdaiVaultTellerName = "SuperUSD Vault Teller With Multi Asset Support V0.0";
     string public constant UsdaiVaultDecoderAndSanitizerName = "SuperUSD Vault Decoder and Sanitizer V0.0";
     string public constant UsdaiVaultDelayedWithdrawer = "SuperUSD Vault Delayed Withdrawer V0.0";
-    string public constant UsdaiVaultQueueName = "SuperUSD Vault Queue V0.2";
-    string public constant UsdaiVaultQueueSolverName = "SuperUSD Vault Queue Solver V0.2";
+    string public constant UsdaiVaultQueueName = "SuperUSD Vault Queue V0.3";
+    string public constant UsdaiVaultQueueSolverName = "SuperUSD Vault Queue Solver V0.3";
     string public constant UsdaiLayerZeroTellerName = "SuperUSD LayerZero Teller V0.0";
     string public constant UsdaiChainlinkCCIPTellerName = "SuperUSD Chainlink CCIP Teller V0.0";
     string public constant UsdaiAcrossDecoderAndSanitizerName = "SuperUSD Across Decoder and Sanitizer V0.0";
@@ -47,8 +47,8 @@ contract ContractNames {
     string public constant sUsdaiVaultTellerName = "sSuperUSD Vault Teller With Multi Asset Support V0.0";
     string public constant sUsdaiVaultDecoderAndSanitizerName = "sSuperUSD Vault Decoder and Sanitizer V0.0";
     string public constant sUsdaiVaultDelayedWithdrawer = "sSuperUSD Vault Delayed Withdrawer V0.0";
-    string public constant sUsdaiVaultQueueName = "sSuperUSD Vault Queue V0.1";
-    string public constant sUsdaiVaultQueueSolverName = "sSuperUSD Vault Queue Solver V0.1";
+    string public constant sUsdaiVaultQueueName = "sSuperUSD Vault Queue V0.2";
+    string public constant sUsdaiVaultQueueSolverName = "sSuperUSD Vault Queue Solver V0.2";
     string public constant sUsdaiLayerZeroTellerName = "sSuperUSD LayerZero Teller V0.0";
     string public constant sUsdaiChainlinkCCIPTellerName = "sSuperUSD Chainlink CCIP Teller V0.0";
     string public constant sUsdaiBaseDecoderAndSanitizerName = "sSuperUSD Base Decoder and Sanitizer V0.0";

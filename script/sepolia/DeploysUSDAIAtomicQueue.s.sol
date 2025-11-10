@@ -58,13 +58,13 @@ contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
             rolesAuthority = RolesAuthority(deployer.getAddress(sUsdaiBoringOnChainQueuesRolesAuthorityName));
         }
 
-        creationCode = type(AtomicQueue).creationCode;
-        constructorArgs = abi.encode(owner, rolesAuthority, deployer.getAddress(sUsdaiVaultAccountantName));
-        atomicQueue = AtomicQueue(deployer.deployContract(sUsdaiVaultQueueName, creationCode, constructorArgs, 0));
-
         creationCode = type(AtomicSolverV4).creationCode;
         constructorArgs = abi.encode(owner, rolesAuthority);
         atomicSolver = AtomicSolverV4(deployer.deployContract(sUsdaiVaultQueueSolverName, creationCode, constructorArgs, 0));
+
+        creationCode = type(AtomicQueue).creationCode;
+        constructorArgs = abi.encode(owner, rolesAuthority, 0xa13Ae9290FC1f889aB75F5986eC299D9b910b68e, address(atomicSolver));
+        atomicQueue = AtomicQueue(deployer.deployContract(sUsdaiVaultQueueName, creationCode, constructorArgs, 0));
 
         // set RolesAuthority
         rolesAuthority.setUserRole(canSolve, CAN_SOLVE_ROLE, true);
@@ -81,8 +81,11 @@ contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.removeFromWhitelist.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.updateWhitelistMaturityDivisor.selector, true);
         // rolesAuthority.setRoleCapability(INSTANT_WITHDRAW_ROLE, address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.setSolver.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.cancelAtomicRequestByAdmin.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicSolver), AtomicSolverV4.finishSolve.selector, true);
         rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicSolver), AtomicSolverV4.rescueTokens.selector, true);
+        rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicSolver), AtomicSolverV4.approveOfferForQueue.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.updateAtomicRequest.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.cancelAtomicRequest.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
