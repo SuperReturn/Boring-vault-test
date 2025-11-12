@@ -58,12 +58,12 @@ contract UpgradeTest is Test, MainnetAddresses {
 
     address public constant oldDeployer                 = address(0x1f082348a1f3C9eDfc31374913E0817055BA5F88);
 
-    bytes4 public constant upgradeToAndCallSighash = 0x4f1ef286;
+    bytes4 public constant upgradeToAndCallSelector = 0x4f1ef286;
+    bytes4 public constant setNameAndSymbolSelector = 0x5a446215;
     //address public constant signerAddress               = address(0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496); // address(this), the one used in the test
 
     Deployer public deployer;
     address public implementation;
-    address public deployerWallet                       = address(0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4);
     address public authorityOwner                       = address(0x1B05602fd89674dB6385c8188d57BD1015882F42);
 
     function setUp() external {
@@ -75,6 +75,7 @@ contract UpgradeTest is Test, MainnetAddresses {
         // 0: test state before upgrade
         //console.log("here 0");
         _testBalances();
+        _testMetadataBefore();
 
         // 1: Deploy deployer
         //console.log("here 1");
@@ -91,49 +92,60 @@ contract UpgradeTest is Test, MainnetAddresses {
 
         // 3: test upgrade roles and capabilities not yet set
         //console.log("here 3");
-        assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, upgradeToAndCallSighash), false, "Should not be able to call upgrade");
-        assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesRoleHaveCapability(ADMIN_ROLE, superusd, upgradeToAndCallSighash), false, "Admin role should not start with the upgrade capability");
-        assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesRoleHaveCapability(UPGRADER_ROLE, superusd, upgradeToAndCallSighash), false, "Upgrader role should not start with the upgrade capability");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, upgradeToAndCallSelector), false, "Should not be able to call upgradeToAndCall yet");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, setNameAndSymbolSelector), false, "Should not be able to call setNameAndSymbol yet");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesRoleHaveCapability(ADMIN_ROLE, superusd, upgradeToAndCallSelector), false, "Admin role should not start with the upgradeToAndCall capability");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesRoleHaveCapability(UPGRADER_ROLE, superusd, upgradeToAndCallSelector), false, "Upgrader role should not start with the upgradeToAndCall capability");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesRoleHaveCapability(ADMIN_ROLE, superusd, setNameAndSymbolSelector), false, "Admin role should not start with the setNameAndSymbol capability");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesRoleHaveCapability(UPGRADER_ROLE, superusd, setNameAndSymbolSelector), false, "Upgrader role should not start with the setNameAndSymbol capability");
         assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesUserHaveRole(address(this), ADMIN_ROLE), false, "Script should not start with the admin role");
         assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesUserHaveRole(address(this), UPGRADER_ROLE), false, "Script should not start with the upgrader role");
 
         // 4: test upgrade fails without auth
         //console.log("here 4");
+        bytes memory data = abi.encodeWithSelector(setNameAndSymbolSelector, "SuperUSD", "SuperUSD");
         vm.expectRevert("UNAUTHORIZED");
-        BoringVault(payable(superusd)).upgradeToAndCall(implementation, hex"");
+        BoringVault(payable(superusd)).upgradeToAndCall(implementation, data);
 
         // 5: Set role capability
         //console.log("here 5");
         vm.prank(authorityOwner);
-        RolesAuthority(oldSuperusdRolesAuthority).setRoleCapability(UPGRADER_ROLE, superusd, upgradeToAndCallSighash, true);
-        assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, upgradeToAndCallSighash), false, "Should not be able to call upgrade yet");
-        vm.stopPrank();
+        RolesAuthority(oldSuperusdRolesAuthority).setRoleCapability(UPGRADER_ROLE, superusd, upgradeToAndCallSelector, true);
+        vm.prank(authorityOwner);
+        RolesAuthority(oldSuperusdRolesAuthority).setRoleCapability(UPGRADER_ROLE, superusd, setNameAndSymbolSelector, true);
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesRoleHaveCapability(UPGRADER_ROLE, superusd, upgradeToAndCallSelector), true, "Upgrader role should now have the upgradeToAndCall capability");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesRoleHaveCapability(UPGRADER_ROLE, superusd, setNameAndSymbolSelector), true, "Upgrader role should now have the setNameAndSymbol capability");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, upgradeToAndCallSelector), false, "Should not be able to call upgradeToAndCall yet");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, setNameAndSymbolSelector), false, "Should not be able to call setNameAndSymbol yet");
+        //vm.stopPrank();
 
         // 6: Set user role
         //console.log("here 6");
         vm.prank(authorityOwner);
         RolesAuthority(oldSuperusdRolesAuthority).setUserRole(address(this), UPGRADER_ROLE, true);
-        assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, upgradeToAndCallSighash), true, "Should be able to call upgrade");
-        vm.stopPrank();
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesUserHaveRole(address(this), UPGRADER_ROLE), true, "Script should now have the upgrader role");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, upgradeToAndCallSelector), true, "Should be able to call upgradeToAndCall");
+        assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, setNameAndSymbolSelector), true, "Should be able to call setNameAndSymbol");
+        //vm.stopPrank();
 
         // 7: test upgrade
         //console.log("here 7");
-        //vm.expectRevert("UNAUTHORIZED");
-        //BoringVault(payable(superusd)).upgradeToAndCall(implementation, hex"");
-        BoringVault(payable(superusd)).upgradeToAndCall(implementation, hex"");
+        BoringVault(payable(superusd)).upgradeToAndCall(implementation, data);
 
-        // 8: test state after upgrade
-        //console.log("here 8");
-        _testBalances();
+        vm.stopPrank();
     }
 
-    function test01BalancesAfterUpgrade() external view {
-        _testBalances();
-    }
-
-    function test02ContractsAreDeployed() external view {
+    function test01ContractsAreDeployed() external view {
         assertNotEq(address(deployer), address(0), "Deployer should be deployed");
         assertNotEq(address(implementation), address(0), "Implementation should be deployed");
+    }
+
+    function test02BalancesAfterUpgrade() external view {
+        _testBalances();
+    }
+
+    function test02MetadataAfterUpgrade() external view {
+        _testMetadataAfter();
     }
 
     // ========================================= TEST HELPERS =========================================
@@ -152,6 +164,18 @@ contract UpgradeTest is Test, MainnetAddresses {
             console.log("Expected", expectedBalance, "got", balance);
         }
         assertEq(balance, expectedBalance, "User balance is incorrect");
+    }
+
+    function _testMetadataBefore() internal view {
+        assertEq(ERC20(superusd).name(), "SuperUSD boring vault", "SuperUSD name is incorrect");
+        assertEq(ERC20(superusd).symbol(), "SuperUSD", "SuperUSD symbol is incorrect");
+        assertEq(ERC20(superusd).decimals(), 6, "SuperUSD decimals is incorrect");
+    }
+    
+    function _testMetadataAfter() internal view {
+        assertEq(ERC20(superusd).name(), "SuperUSD", "SuperUSD name is incorrect");
+        assertEq(ERC20(superusd).symbol(), "SuperUSD", "SuperUSD symbol is incorrect");
+        assertEq(ERC20(superusd).decimals(), 6, "SuperUSD decimals is incorrect");
     }
 
     // ========================================= HELPER FUNCTIONS =========================================
