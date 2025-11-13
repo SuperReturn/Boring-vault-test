@@ -4,11 +4,15 @@ pragma solidity 0.8.21;
 import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
 import {BoringVault} from "src/base/BoringVault.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
+import {AccountantWithRateProviders2} from "src/base/Roles/AccountantWithRateProviders2.sol";
 import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "@solmate/utils/FixedPointMathLib.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {IRateProvider} from "src/interfaces/IRateProvider.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
+import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
+import {AtomicSolverV4} from "src/atomic-queue/AtomicSolverV4.sol";
+import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 
 import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
 import {Deployer} from "src/helper/Deployer.sol";
@@ -20,15 +24,20 @@ contract UpgradeTest is Test, MainnetAddresses {
     using stdStorage for StdStorage;
 
     BoringVault public boringVault;
-    AccountantWithRateProviders public accountant;
-    address public payout_address = vm.addr(7777777);
+    AccountantWithRateProviders2 public accountant;
     RolesAuthority public rolesAuthority;
-
+    TellerWithMultiAssetSupport public teller;
+    AtomicQueue public atomicQueue;
+    AtomicSolverV4 public atomicSolverV4;
+    address public payoutAddress = vm.addr(7777777);
+    
     uint8 public constant MINTER_ROLE = 1;
-    uint8 public constant ADMIN_ROLE = 2;
-    uint8 public constant UPDATE_EXCHANGE_RATE_ROLE = 3;
-    uint8 public constant BORING_VAULT_ROLE = 4;
-    uint8 public constant UPGRADER_ROLE = 5;
+    uint8 public constant BURNER_ROLE = 2;
+    uint8 public constant SOLVER_ROLE = 3;
+    uint8 public constant QUEUE_ROLE = 4;
+    uint8 public constant ADMIN_ROLE = 5;
+    uint8 public constant WITHDRAW_ROLE = 6;
+    uint8 public constant UPGRADER_ROLE = 7;
 
     address public constant superusd                    = address(0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB);
     //address public constant oldSuperusdImpl           = address(0xd00fb475cd68cd99e711fd395bc185758e84ba40);
@@ -65,6 +74,10 @@ contract UpgradeTest is Test, MainnetAddresses {
     Deployer public deployer;
     address public implementation;
     address public authorityOwner                       = address(0x1B05602fd89674dB6385c8188d57BD1015882F42);
+    address public usdc                                 = address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    address public usdcMasterMinter                     = address(0xE982615d461DD5cD06575BbeA87624fda4e3de17);
+
+    uint256 userUSDCInitialBalance = 1000e6;
 
     function setUp() external {
         // Setup forked environment.
@@ -72,10 +85,14 @@ contract UpgradeTest is Test, MainnetAddresses {
         uint256 blockNumber = 23779300;
         _startFork(rpcKey, blockNumber);
 
+        boringVault = BoringVault(payable(superusd));
+        rolesAuthority = RolesAuthority(oldSuperusdRolesAuthority);
+
         // 0: test state before upgrade
         //console.log("here 0");
         _testBalances();
         _testMetadataBefore();
+        _testOtherViews();
 
         // 1: Deploy deployer
         //console.log("here 1");
@@ -109,30 +126,107 @@ contract UpgradeTest is Test, MainnetAddresses {
 
         // 5: Set role capability
         //console.log("here 5");
-        vm.prank(authorityOwner);
+        vm.startPrank(authorityOwner);
         RolesAuthority(oldSuperusdRolesAuthority).setRoleCapability(UPGRADER_ROLE, superusd, upgradeToAndCallSelector, true);
-        vm.prank(authorityOwner);
         RolesAuthority(oldSuperusdRolesAuthority).setRoleCapability(UPGRADER_ROLE, superusd, setNameAndSymbolSelector, true);
         assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesRoleHaveCapability(UPGRADER_ROLE, superusd, upgradeToAndCallSelector), true, "Upgrader role should now have the upgradeToAndCall capability");
         assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesRoleHaveCapability(UPGRADER_ROLE, superusd, setNameAndSymbolSelector), true, "Upgrader role should now have the setNameAndSymbol capability");
         assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, upgradeToAndCallSelector), false, "Should not be able to call upgradeToAndCall yet");
         assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, setNameAndSymbolSelector), false, "Should not be able to call setNameAndSymbol yet");
-        //vm.stopPrank();
-
+        
         // 6: Set user role
         //console.log("here 6");
-        vm.prank(authorityOwner);
         RolesAuthority(oldSuperusdRolesAuthority).setUserRole(address(this), UPGRADER_ROLE, true);
         assertEq(RolesAuthority(oldSuperusdRolesAuthority).doesUserHaveRole(address(this), UPGRADER_ROLE), true, "Script should now have the upgrader role");
         assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, upgradeToAndCallSelector), true, "Should be able to call upgradeToAndCall");
         assertEq(RolesAuthority(oldSuperusdRolesAuthority).canCall(address(this), superusd, setNameAndSymbolSelector), true, "Should be able to call setNameAndSymbol");
-        //vm.stopPrank();
+        vm.stopPrank();
 
         // 7: test upgrade
         //console.log("here 7");
         BoringVault(payable(superusd)).upgradeToAndCall(implementation, data);
 
+
+        // 8: Deploy new accountant
+        //console.log("here 8");
+        accountant = new AccountantWithRateProviders2(
+            address(this),
+            superusd,
+            payoutAddress,
+            1e6, // USDC decimals
+            usdc,
+            1.005e4,
+            0.995e4,
+            1 days / 4,
+            0,
+            0
+        );
+
+        // 9: Deploy new teller
+        //console.log("here 9");
+        teller = new TellerWithMultiAssetSupport(address(this), superusd, address(accountant), usdc);
+
+        // 10: Deploy new atomic solver
+        //console.log("here 10");
+        atomicSolverV4 = new AtomicSolverV4(address(this), rolesAuthority);
+
+        // 11: Deploy new atomic queue
+        //console.log("here 11");
+        atomicQueue = new AtomicQueue(address(this), rolesAuthority, address(accountant), address(atomicSolverV4));
+
+        // 12: Set authority on new contracts
+        //console.log("here 12");
+        //boringVault.setAuthority(rolesAuthority); // already set
+        accountant.setAuthority(rolesAuthority);
+        teller.setAuthority(rolesAuthority);
+
+        //console.log("here 13");
+
+        // 13: Set roles and role capabilities
+        vm.startPrank(authorityOwner);
+        // already added
+        //rolesAuthority.setRoleCapability(MINTER_ROLE, address(boringVault), BoringVault.enter.selector, true);
+        rolesAuthority.setRoleCapability(BURNER_ROLE, address(boringVault), BoringVault.exit.selector, true);
+        rolesAuthority.setRoleCapability(
+            SOLVER_ROLE, address(teller), TellerWithMultiAssetSupport.bulkDeposit.selector, true
+        );
+        rolesAuthority.setRoleCapability(
+            SOLVER_ROLE, address(teller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
+        );
+        rolesAuthority.setRoleCapability(QUEUE_ROLE, address(atomicSolverV4), AtomicSolverV4.finishSolve.selector, true);
+        rolesAuthority.setRoleCapability(QUEUE_ROLE, address(atomicSolverV4), AtomicSolverV4.approveOfferForQueue.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.setMaturityTime.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.setDiscount.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.addToWhitelist.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.removeFromWhitelist.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.updateWhitelistMaturityDivisor.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.setSolver.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.cancelAtomicRequestByAdmin.selector, true);
+        rolesAuthority.setRoleCapability(WITHDRAW_ROLE, address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
+        rolesAuthority.setPublicCapability(address(teller), TellerWithMultiAssetSupport.deposit.selector, true);
+        rolesAuthority.setPublicCapability(address(accountant), AccountantWithRateProviders.updateExchangeRate.selector, true);
+        rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.updateAtomicRequest.selector, true);
+        rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.solve.selector, true);
+        rolesAuthority.setPublicCapability(address(atomicSolverV4), AtomicSolverV4.redeemSolve.selector, true);
+        
+        rolesAuthority.setUserRole(address(teller), MINTER_ROLE, true);
+        rolesAuthority.setUserRole(address(teller), BURNER_ROLE, true);
+        rolesAuthority.setUserRole(address(atomicSolverV4), SOLVER_ROLE, true);
+        rolesAuthority.setUserRole(address(atomicQueue), QUEUE_ROLE, true);
+        rolesAuthority.setUserRole(address(atomicQueue), SOLVER_ROLE, true);
+        rolesAuthority.setUserRole(address(this), WITHDRAW_ROLE, true);
+
         vm.stopPrank();
+
+        atomicQueue.setDiscount(0); // ignore the discount for testing
+
+        // 14: Mint USDC for testing
+        teller.addAsset(ERC20(usdc));
+        assertEq(ERC20(usdc).balanceOf(address(this)), 0, "Script should not start with any USDC");
+        vm.prank(usdcMasterMinter);
+        IUsdcMintable(usdc).configureMinter(address(this), userUSDCInitialBalance);
+        IUsdcMintable(usdc).mint(address(this), userUSDCInitialBalance);
+        assertEq(ERC20(usdc).balanceOf(address(this)), userUSDCInitialBalance, "Script should now have USDC");
     }
 
     function test01ContractsAreDeployed() external view {
@@ -144,8 +238,21 @@ contract UpgradeTest is Test, MainnetAddresses {
         _testBalances();
     }
 
-    function test02MetadataAfterUpgrade() external view {
+    function test03MetadataAfterUpgrade() external view {
         _testMetadataAfter();
+    }
+
+    function test04OtherViews() external view {
+        _testOtherViews();
+    }
+
+    function test05CanDeposit() external {
+        _testDeposit();
+    }
+
+    function test06CanWithdraw() external {
+        _testDeposit();
+        _testWithdraw();
     }
 
     // ========================================= TEST HELPERS =========================================
@@ -155,6 +262,8 @@ contract UpgradeTest is Test, MainnetAddresses {
         _testUserBalance(address(0x139450C2dCeF827C9A2a0Bb1CB5506260940c9fd), 234646657746, 2);
         _testUserBalance(address(0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4),     44477087, 3);
         _testUserBalance(address(0xcF372762FE08682528Cba6BfA367A768d7b0afB4),     20000000, 4);
+        _testUserBalance(address(this),                                                  0, 5);
+        assertEq(ERC20(superusd).totalSupply(), 499416121473, "SuperUSD total supply is incorrect");
     }
     
     function _testUserBalance(address user, uint256 expectedBalance, uint256 userIndex) internal view {
@@ -177,6 +286,40 @@ contract UpgradeTest is Test, MainnetAddresses {
         assertEq(ERC20(superusd).symbol(), "SuperUSD", "SuperUSD symbol is incorrect");
         assertEq(ERC20(superusd).decimals(), 6, "SuperUSD decimals is incorrect");
     }
+    
+    function _testOtherViews() internal view {
+        assertEq(BoringVault(payable(superusd)).maxTotalSupply(), 100000000000000, "SuperUSD max total supply is incorrect");
+        assertEq(BoringVault(payable(superusd)).UPGRADE_INTERFACE_VERSION(), "5.0.0", "SuperUSD upgrade interface version is incorrect");
+        assertEq(address(BoringVault(payable(superusd)).authority()), oldSuperusdRolesAuthority, "SuperUSD authority is incorrect");
+        assertEq(address(BoringVault(payable(superusd)).hook()), oldSuperusdTeller, "SuperUSD hook is incorrect");
+        assertEq(BoringVault(payable(superusd)).owner(), address(0), "SuperUSD owner is incorrect");
+    }
+
+    function _testDeposit() internal {
+        //ERC20(usdc).approve(address(teller), type(uint256).max);
+        ERC20(usdc).approve(superusd, type(uint256).max);
+        uint256 shares0 = teller.deposit(ERC20(usdc), 100e6, 0);
+        assertNotEq(shares0, 0, "Deposit should earn shares");
+        //console.log("shares  :", shares0);
+        assertNotEq(ERC20(superusd).balanceOf(address(this)), 0, "Script should have some shares");
+        assertEq(ERC20(superusd).balanceOf(address(this)), shares0, "Script should have exact shares");
+        assertEq(ERC20(usdc).balanceOf(address(this)), 900e6, "Script should correct usdc remaining");
+    }
+
+    function _testWithdraw() internal {
+        uint256 discount = 0;
+        // instant withdraw
+        uint256 vaultUsdcBalanceBefore = ERC20(usdc).balanceOf(superusd);
+        assertEq(vaultUsdcBalanceBefore, 3618196662);
+        ERC20(superusd).approve(address(atomicQueue), type(uint256).max);
+        uint256 assets = atomicQueue.instantWithdraw(ERC20(superusd), ERC20(usdc), 20e6, 0, teller);
+        assertEq(assets, 20000000);
+        // Check the usdc and vault share amount
+        assertEq(assets, uint256(20e6).mulDivDown(1e6 - discount, 1e6));
+        assertEq(ERC20(usdc).balanceOf(address(this)), 900e6 + 20e6);
+        assertEq(ERC20(usdc).balanceOf(address(boringVault)), vaultUsdcBalanceBefore - 20e6);
+        assertEq(boringVault.balanceOf(address(this)), 100e6 - 20e6);
+    }
 
     // ========================================= HELPER FUNCTIONS =========================================
 
@@ -184,4 +327,9 @@ contract UpgradeTest is Test, MainnetAddresses {
         forkId = vm.createFork(vm.envString(rpcKey), blockNumber);
         vm.selectFork(forkId);
     }
+}
+
+interface IUsdcMintable {
+    function mint(address _to, uint256 _amount) external;
+    function configureMinter(address minter, uint256 minterAllowedAmount) external;
 }
