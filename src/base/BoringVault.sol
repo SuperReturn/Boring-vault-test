@@ -213,4 +213,20 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
     function setMaxTotalSupply(uint256 _maxTotalSupply) external requiresAuth {
         maxTotalSupply = _maxTotalSupply;
     }
+
+    /// @notice Sets the name and symbol of the token.
+    /// @dev Callable by authorized roles.
+    /// @param name_ The name of the token.
+    /// @param symbol_ The symbol of the token.
+    function setNameAndSymbol(string calldata name_, string calldata symbol_) external requiresAuth {
+        // get storage
+        bytes32 ERC20StorageLocation = 0x52c63247e1f47db19d5ce0460030c497f067ca4cebf71ba98eeadabe20bace00;
+        ERC20Upgradeable.ERC20Storage storage $;
+        assembly {
+            $.slot := ERC20StorageLocation
+        }
+        // set name and symbol in storage
+        $._name = name_;
+        $._symbol = symbol_;
+    }
 }
