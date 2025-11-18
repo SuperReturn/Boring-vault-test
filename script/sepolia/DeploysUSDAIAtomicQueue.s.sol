@@ -63,7 +63,8 @@ contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
         atomicSolver = AtomicSolverV4(deployer.deployContract(sUsdaiVaultQueueSolverName, creationCode, constructorArgs, 0));
 
         creationCode = type(AtomicQueue).creationCode;
-        constructorArgs = abi.encode(owner, rolesAuthority, 0xa13Ae9290FC1f889aB75F5986eC299D9b910b68e, address(atomicSolver));
+        address accountant = _getAddressIfDeployed(sUsdaiVaultAccountantName);
+        constructorArgs = abi.encode(owner, rolesAuthority, accountant, address(atomicSolver));
         atomicQueue = AtomicQueue(deployer.deployContract(sUsdaiVaultQueueName, creationCode, constructorArgs, 0));
 
         // set RolesAuthority
