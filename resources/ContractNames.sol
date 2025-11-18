@@ -14,7 +14,7 @@ contract ContractNames {
     string public constant AtomicSolverName = "Atomic Solver V3.0";
 
     // USDAI 
-    string public constant UsdaiDeployerName = "SuperUSD Deployer V0.1";
+    string public constant UsdaiDeployerName = "SuperUSD Deployer V0.2";
     string public constant UsdaiBoringOnChainQueuesRolesAuthorityName = "SuperUSD Boring OnChain Queues Roles Authority V0.0";
     string public constant UsdaiVaultRolesAuthorityName = "SuperUSD Vault RolesAuthority V0.0";
     string public constant UsdaiArcticArchitectureLensName = "SuperUSD Arctic Architecture Lens V0.0";
