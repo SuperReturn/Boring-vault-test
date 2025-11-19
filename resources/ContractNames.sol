@@ -52,4 +52,9 @@ contract ContractNames {
     string public constant sUsdaiLayerZeroTellerName = "sSuperUSD LayerZero Teller V0.0";
     string public constant sUsdaiChainlinkCCIPTellerName = "sSuperUSD Chainlink CCIP Teller V0.0";
     string public constant sUsdaiBaseDecoderAndSanitizerName = "sSuperUSD Base Decoder and Sanitizer V0.0";
+
+    // zaps
+    string public constant sSuperUSDZapTellerName = "sSuperUSD Zap Teller V0.0";
+    string public constant sSuperUSDSakeZapTellerName = "sSuperUSD Sake Zap Teller V0.0";
+
 }
