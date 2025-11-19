@@ -83,6 +83,7 @@ contract DeployTestVaultScript is DeployArcticArchitecture, KatanaBokutoAddresse
         vm.startBroadcast(privateKey);
 
         _deploy(DeployParams({
+            previousBoringVault: address(0),
             deploymentFileName: "sSuperUSDKatanaBokutoDeployment.json",
             owner: owner,
             boringVaultName: boringVaultName,

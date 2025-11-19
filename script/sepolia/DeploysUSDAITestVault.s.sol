@@ -83,6 +83,7 @@ contract DeployTestVaultScript is DeployArcticArchitecture, SepoliaAddresses {
         vm.startBroadcast(privateKey);
 
         _deploy(DeployParams({
+            previousBoringVault: address(0),
             deploymentFileName: "sSuperUSDSepoliaDeployment.json",
             owner: owner,
             boringVaultName: boringVaultName,

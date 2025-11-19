@@ -119,6 +119,7 @@ contract DeployArcticArchitecture is Script, ContractNames {
     string depositConfigurationOutput;
 
     struct DeployParams {
+        address previousBoringVault;
         string deploymentFileName;
         address owner;
         string boringVaultName;
@@ -169,42 +170,46 @@ contract DeployArcticArchitecture is Script, ContractNames {
                 lens = ArcticArchitectureLens(deployedAddress);
             }
 
-            deployedAddress = _getAddressIfDeployed(names.boringVault);
-            // boringVault = BoringVault(payable(previoussSuperUSDVault));
-            if (deployedAddress == address(0)) {
-                address implementation = deployer.deployContract(
-                    string.concat(names.boringVault, "-Implementation"),
-                    type(BoringVault).creationCode,
-                    hex"",
-                    0
-                );
-
-                // Prepare initializer data for UUPS proxy
-                bytes memory initializer = abi.encodeWithSelector(
-                    BoringVault.initialize.selector,
-                    params.owner,
-                    rolesAuthority,
-                    params.boringVaultName,
-                    params.boringVaultSymbol,
-                    params.boringVaultDecimals
-                );
-
-                // Deploy the proxy
-                bytes memory proxyCreationCode = abi.encodePacked(
-                    type(ERC1967Proxy).creationCode,
-                    abi.encode(implementation, initializer)
-                );
-
-                address proxy = deployer.deployContract(
-                    names.boringVault,
-                    proxyCreationCode,
-                    hex"",
-                    0
-                );
-
-                boringVault = BoringVault(payable(proxy));
+            if (params.previousBoringVault != address(0)) {
+                boringVault = BoringVault(payable(params.previousBoringVault));
             } else {
-                boringVault = BoringVault(payable(deployedAddress));
+                deployedAddress = _getAddressIfDeployed(names.boringVault);
+                // boringVault = BoringVault(payable(previoussSuperUSDVault));
+                if (deployedAddress == address(0)) {
+                    address implementation = deployer.deployContract(
+                        string.concat(names.boringVault, "-Implementation"),
+                        type(BoringVault).creationCode,
+                        hex"",
+                        0
+                    );
+
+                    // Prepare initializer data for UUPS proxy
+                    bytes memory initializer = abi.encodeWithSelector(
+                        BoringVault.initialize.selector,
+                        params.owner,
+                        rolesAuthority,
+                        params.boringVaultName,
+                        params.boringVaultSymbol,
+                        params.boringVaultDecimals
+                    );
+
+                    // Deploy the proxy
+                    bytes memory proxyCreationCode = abi.encodePacked(
+                        type(ERC1967Proxy).creationCode,
+                        abi.encode(implementation, initializer)
+                    );
+
+                    address proxy = deployer.deployContract(
+                        names.boringVault,
+                        proxyCreationCode,
+                        hex"",
+                        0
+                    );
+
+                    boringVault = BoringVault(payable(proxy));
+                } else {
+                    boringVault = BoringVault(payable(deployedAddress));
+                }
             }
 
             deployedAddress = _getAddressIfDeployed(names.manager);
@@ -324,6 +329,12 @@ contract DeployArcticArchitecture is Script, ContractNames {
                     true
                 );
             }
+            rolesAuthority.setRoleCapability(
+                MANAGER_ROLE,
+                address(boringVault),
+                bytes4(abi.encodeWithSignature("upgradeToAndCall(address,bytes)")),
+                true
+            );
             // MINTER_ROLE
             if (!rolesAuthority.doesRoleHaveCapability(MINTER_ROLE, address(boringVault), BoringVault.enter.selector)) {
                 rolesAuthority.setRoleCapability(MINTER_ROLE, address(boringVault), BoringVault.enter.selector, true);
