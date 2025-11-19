@@ -37,12 +37,6 @@ contract DeployZapTellers is Script, ContractNames, SepoliaAddresses {
     address public ssuperusdZapTeller;
     address public ssuperusdSakeZapTeller;
 
-    // Roles
-    uint8 public constant CAN_SOLVE_ROLE = 31;
-    uint8 public constant ONLY_QUEUE_ROLE = 32;
-    uint8 public constant ADMIN_ROLE = 33;
-    uint8 public constant INSTANT_WITHDRAW_ROLE = 34;
-
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
         vm.createSelectFork("sepolia");
