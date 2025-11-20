@@ -20,6 +20,33 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ContractNames} from "resources/ContractNames.sol";
 import {PlumeTestnetAddresses} from "test/resources/PlumeTestnetAddresses.sol";
 
+// Add this struct before the interface IBoringOnChainQueue
+struct OnChainWithdraw {
+    uint96 nonce; 
+    address user; 
+    address assetOut; 
+    uint128 amountOfShares;
+    uint128 amountOfAssets;
+    uint40 creationTime;
+    uint24 secondsToMaturity;
+    uint24 secondsToDeadline;
+}
+
+interface IBoringOnChainQueue {
+    function requestOnChainWithdraw(
+        address assetOut,
+        uint128 amountOfShares,
+        uint16 discount,
+        uint24 secondsToDeadline
+    ) external returns (bytes32 requestId);
+
+    function getOnChainWithdraw(bytes32 requestId) external view returns (OnChainWithdraw memory);
+}
+
+interface IBoringSolver {
+    function boringRedeemSelfSolve(OnChainWithdraw calldata request, address teller) external;
+}
+
 /*
  * This test primarily validates the redeployment process, which consists of two main parts:
  * 1. Testing the basic operation with the old and new Boring Vault role authority
@@ -95,13 +122,8 @@ contract RedeployTest is Test, ContractNames, PlumeTestnetAddresses{
     }
 
     function testUpdateBoringVaultRoleAuthority() external {
-        // Check initial state - old authority is set
-        // comment this since the authority is updated when redeploying the contracts in DeployArcticArchitecture "Set all RolesAuthorities." part
-        // assertEq(address(boringVault.authority()), oldSuperusdRolesAuthority);
-        
         // Set new role authority here
-        // comment this since the authority is updated when redeploying the contracts in DeployArcticArchitecture "Set all RolesAuthorities." part
-        // boringVault.setAuthority(Authority(newSuperusdRolesAuthority));
+        boringVault.setAuthority(Authority(newSuperusdRolesAuthority));
         
         // After switching authority, basic operations work with new contracts
         vm.stopPrank();
@@ -219,7 +241,7 @@ contract RedeployTest is Test, ContractNames, PlumeTestnetAddresses{
         AccountantWithRateProviders accountant = AccountantWithRateProviders(params.accountant);
         assertNotEq(accountant.getRateSafe(), 0, "Exchange rate should not be 0");
 
-        // // 1. deposit
+        // 1. deposit
         TellerWithMultiAssetSupport teller = TellerWithMultiAssetSupport(params.teller);
 
         deal(address(baseAsset), user, 1e6);
@@ -229,6 +251,23 @@ contract RedeployTest is Test, ContractNames, PlumeTestnetAddresses{
         // so the previous teller will revert when executing.
         vm.expectRevert("UNAUTHORIZED");
         teller.deposit(baseAsset, 1e6, 0);
+
+        // 2. send withdraw queue and solve
+        deal(address(params.boringVault), user, 1e6);
+        ERC20(params.boringVault).safeApprove(address(params.queue), type(uint256).max);
+        bytes32 requestId = IBoringOnChainQueue(params.queue).requestOnChainWithdraw(
+            address(baseAsset),
+            1 * 1e5,
+            3,
+            10 minutes
+        );
+        OnChainWithdraw memory onChainWithdraw = IBoringOnChainQueue(params.queue).getOnChainWithdraw(requestId);
+
+        vm.warp(block.timestamp + 10 minutes - 1);
+        // After entering the vault, it will check the authorization using the authority set on the BoringVault,
+        // so the previous teller will revert when executing.
+        vm.expectRevert("UNAUTHORIZED");
+        IBoringSolver(params.solver).boringRedeemSelfSolve(onChainWithdraw, params.teller);
     }
 
     // ========================================= HELPER FUNCTIONS =========================================
