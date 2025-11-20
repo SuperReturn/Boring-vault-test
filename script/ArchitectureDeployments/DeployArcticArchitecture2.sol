@@ -904,7 +904,7 @@ contract DeployArcticArchitecture2 is Script, ContractNames {
             boringVault.setMaxTotalSupply(10_000_000 * 1e6);
 
             // Set all RolesAuthorities.
-            if (boringVault.authority() != rolesAuthority) boringVault.setAuthority(rolesAuthority);
+            // if (boringVault.authority() != rolesAuthority) boringVault.setAuthority(rolesAuthority);
             if (manager.authority() != rolesAuthority) manager.setAuthority(rolesAuthority);
             if (accountant.authority() != rolesAuthority) accountant.setAuthority(rolesAuthority);
             if (teller.authority() != rolesAuthority) teller.setAuthority(rolesAuthority);
