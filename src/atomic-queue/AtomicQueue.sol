@@ -52,11 +52,11 @@ contract AtomicQueue is ReentrancyGuard, Auth {
      */
     mapping(bytes32 => AtomicRequest) internal onChainWithdraws;
 
-    /** 
-     * @notice This mapping tracks the total amount of 'offer' tokens in progress for withdrawal requests.
+    /**
+     * @notice This mapping tracks the total amount of 'offer' tokens in progress for withdrawal requests per want token.
      * @dev It is incremented when a new request is submitted and decremented when the request is fulfilled or cancelled.
      */
-    mapping(address => uint256) public withdrawInProgressAmount;
+    mapping(address => mapping(address => uint256)) public withdrawInProgressAmount;
 
     /**
      * @notice Mapping to track whitelisted addresses, which can be solved quickly.
@@ -280,7 +280,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
             AtomicRequest calldata userRequest = userRequests[i];
             bytes32 requestId = keccak256(abi.encode(userRequest));
             if (!_existingWithdrawRequests.contains(requestId)) revert AtomicQueue__RemovedRequest();
-            withdrawInProgressAmount[userRequest.offer] -= userRequest.offerAmount;
+            withdrawInProgressAmount[userRequest.offer][userRequest.want] -= userRequest.offerAmount;
 
             _existingWithdrawRequests.remove(requestId);
 
@@ -302,12 +302,13 @@ contract AtomicQueue is ReentrancyGuard, Auth {
 
     //============================== VIEW FUNCTIONS ===============================
     /**
-     * @notice Get the total amount of 'offer' tokens in progress for withdrawal requests.
+     * @notice Get the total amount of 'offer' tokens in progress for withdrawal requests for a specific want token.
      * @param offer The address of the offer token.
-     * @return The total amount of 'offer' tokens in progress for withdrawal requests.
+     * @param want The address of the want token.
+     * @return The total amount of 'offer' tokens in progress for withdrawal requests for the specified want token.
      */
-    function getTotalWithdrawInProgressAmount(address offer) external view returns (uint256) {
-        return withdrawInProgressAmount[offer];
+    function getTotalWithdrawInProgressAmount(address offer, address want) external view returns (uint256) {
+        return withdrawInProgressAmount[offer][want];
     }
 
     /**
@@ -450,7 +451,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         if (!_existingWithdrawRequests.add(requestId)) revert AtomicQueue__DuplicateRequest();
 
         onChainWithdraws[requestId] = userRequest;
-        withdrawInProgressAmount[userRequest.offer] += userRequest.offerAmount;
+        withdrawInProgressAmount[userRequest.offer][userRequest.want] += userRequest.offerAmount;
 
         // Transfer offer shares from user to solver contract
         ERC20(userRequest.offer).safeTransferFrom(userRequest.user, address(solver), userRequest.offerAmount);
@@ -476,7 +477,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         if (userRequest.user != msg.sender) revert AtomicQueue__BadUser();
         bytes32 requestId = keccak256(abi.encode(userRequest));
         if (!_existingWithdrawRequests.contains(requestId)) revert AtomicQueue__RemovedRequest();
-        withdrawInProgressAmount[userRequest.offer] -= userRequest.offerAmount;
+        withdrawInProgressAmount[userRequest.offer][userRequest.want] -= userRequest.offerAmount;
 
         _existingWithdrawRequests.remove(requestId);
 
@@ -529,8 +530,8 @@ contract AtomicQueue is ReentrancyGuard, Auth {
 
         uint256 assetOutWithDiscount = assetsOut.mulDivDown(DISCOUNT_DENOMINATOR - discount, DISCOUNT_DENOMINATOR);
         
-        // Calculate assets needed for pending withdrawal requests
-        uint256 pendingWithdrawAssets = withdrawInProgressAmount[address(offer)].mulDivDown(
+        // Calculate assets needed for pending withdrawal requests for this want token
+        uint256 pendingWithdrawAssets = withdrawInProgressAmount[address(offer)][address(want)].mulDivDown(
             accountant.getRateInQuoteSafe(want),
             ONE_SHARE
         );
@@ -632,7 +633,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         want.safeTransferFrom(address(solver), user, assetsForWant);
 
         // Decrease the withdraw in progress amount
-        withdrawInProgressAmount[address(offer)] -= request.offerAmount;
+        withdrawInProgressAmount[address(offer)][address(want)] -= request.offerAmount;
 
         bytes32 requestId = keccak256(abi.encode(request));
         // Emit event
