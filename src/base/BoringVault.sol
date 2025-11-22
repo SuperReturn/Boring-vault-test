@@ -15,9 +15,8 @@ import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/U
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
-import {IERC7802} from "src/interfaces/IERC7802.sol";
 
-contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, ERC721Holder, ERC1155Holder, IERC7802 {
+contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, ERC721Holder, ERC1155Holder {
     using Address for address;
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -168,33 +167,9 @@ contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, 
         return super.transferFrom(from, to, amount);
     }
 
-    //============================== SuperChainERC20 ===============================
-
-    /// @notice Allows the SuperchainTokenBridge to mint tokens.
-    /// @param _to Address to mint tokens to.
-    /// @param _amount Amount of tokens to mint.
-    function crosschainMint(address _to, uint256 _amount) external {
-        if (msg.sender != 0x4200000000000000000000000000000000000028) revert NotSuperchainERC20Bridge();
- 
-        _mint(_to, _amount);
- 
-        emit CrosschainMint(_to, _amount, msg.sender);
-    }
- 
-    /// @notice Allows the SuperchainTokenBridge to burn tokens.
-    /// @param _from Address to burn tokens from.
-    /// @param _amount Amount of tokens to burn.
-    function crosschainBurn(address _from, uint256 _amount) external {
-        if (msg.sender != 0x4200000000000000000000000000000000000028) revert NotSuperchainERC20Bridge();
-        
-        _burn(_from, _amount);
- 
-        emit CrosschainBurn(_from, _amount, msg.sender);
-    }
-
     /// @inheritdoc IERC165
-    function supportsInterface(bytes4 _interfaceId) public view virtual override (ERC1155Holder, IERC165)returns (bool) {
-        return _interfaceId == type(IERC7802).interfaceId || _interfaceId == type(IERC20).interfaceId
+    function supportsInterface(bytes4 _interfaceId) public view virtual override (ERC1155Holder) returns (bool) {
+        return _interfaceId == type(IERC20).interfaceId
             || _interfaceId == type(IERC165).interfaceId || super.supportsInterface(_interfaceId);
     }
 
