@@ -291,7 +291,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         // Verify request was removed
         (bytes32[] memory requestIdsAfter,) = atomicQueue.getExistingWithdrawRequests();
         assertEq(requestIdsAfter.length, 0);
-        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault)), 0);
+        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault), address(USDC)), 0);
         // Can still get the request by request id
         assertEq(atomicQueue.getAtomicRequestById(keccak256(abi.encode(req))).user, user);
 
@@ -389,26 +389,26 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         });
 
         // Verify initial amount is 0
-        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault)), 0);
+        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault), address(USDC)), 0);
 
         // Update request and verify amount increased
         atomicQueue.updateAtomicRequest(req);
-        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault)), 1_000e6);
+        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault), address(USDC)), 1_000e6);
 
         // cancel request
         atomicQueue.cancelAtomicRequest(req);
-        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault)), 0);
+        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault), address(USDC)), 0);
 
         // Update request and solve it
         atomicQueue.updateAtomicRequest(req);
-        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault)), 1_000e6);
+        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault), address(USDC)), 1_000e6);
         skip(atomicQueue.maturityTime() + 1);
 
 
         atomicSolverV4.redeemSolve(
             atomicQueue, 0, type(uint256).max, teller, req
         );
-        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault)), 0);
+        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault), address(USDC)), 0);
 
         vm.stopPrank();
     }
@@ -500,7 +500,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         // Verify request exists
         (bytes32[] memory requestIdsBefore,) = atomicQueue.getExistingWithdrawRequests();
         assertEq(requestIdsBefore.length, 1);
-        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault)), 1_000e6);
+        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault), address(USDC)), 1_000e6);
         assertEq(atomicQueue.getAtomicRequestById(keccak256(abi.encode(req))).user, user);
 
         // Cancel request
@@ -519,7 +519,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         // Verify request was removed
         (bytes32[] memory requestIdsAfter,) = atomicQueue.getExistingWithdrawRequests();
         assertEq(requestIdsAfter.length, 0);
-        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault)), 0);
+        assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault), address(USDC)), 0);
         // Can still get the request by request id
         assertEq(atomicQueue.getAtomicRequestById(keccak256(abi.encode(req))).user, user);
 
