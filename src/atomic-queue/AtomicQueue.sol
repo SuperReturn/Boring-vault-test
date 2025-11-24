@@ -551,10 +551,6 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         // Transfer shares from user to this contract
         offer.safeTransferFrom(msg.sender, address(this), offerAmount);
         
-        // Approve teller to burn shares (zero-first for strict ERC20s)
-        offer.safeApprove(address(teller), 0);
-        offer.safeApprove(address(teller), offerAmount);
-        
         // Execute withdrawal through teller
         assetsOut = teller.bulkWithdraw(want, offerAmount, minimumAssetsOut, address(this));
 
