@@ -390,6 +390,32 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         return onChainWithdraws[requestId];
     }
 
+    /**
+     * @notice Preview the amount of want assets that would be received for an atomic request.
+     * @dev This is a view function that calculates the expected output without executing the transaction.
+     * @param request The atomic request to preview.
+     * @return wantAmountReceived The expected amount of want assets to be received.
+     */
+    function previewReceivedAmount(AtomicRequest calldata request) external view returns (uint256 wantAmountReceived) {
+        // Basic validation (similar to checkAtomicRequestValid but without queue existence check)
+        if (request.offerAmount == 0) revert AtomicQueue__OfferAmountIsZero();
+        if (request.user == address(0)) revert AtomicQueue__UserAddressIsZero();
+        if (request.offer == address(0)) revert AtomicQueue__OfferAddressIsZero();
+        if (request.want == address(0)) revert AtomicQueue__WantAddressIsZero();
+        if (block.timestamp > request.deadline) revert AtomicQueue__DeadlineExpired();
+
+        // Get the offer token decimals
+        ERC20 offer = ERC20(request.offer);
+        uint8 offerDecimals = offer.decimals();
+
+        // Get the rate and apply discount (same logic as in solve function)
+        uint256 safeRate = accountant.getRateInQuoteSafe(ERC20(request.want));
+        uint256 safeAtomicPriceWithDiscount = safeRate.mulDivDown(DISCOUNT_DENOMINATOR - discount, DISCOUNT_DENOMINATOR);
+
+        // Calculate the want amount
+        wantAmountReceived = _calculateAssetAmount(request.offerAmount, safeAtomicPriceWithDiscount, offerDecimals);
+    }
+
     //============================== HELPER FUNCTIONS ===============================
 
     /**

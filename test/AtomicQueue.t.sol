@@ -462,6 +462,22 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
 
         vm.stopPrank();
     }
+
+    function testPreviewReceivedAmount() external {
+        vm.startPrank(user);
+        AtomicRequest memory req = AtomicRequest({
+            deadline: uint64(block.timestamp + 1),
+            creationTime: uint64(block.timestamp),
+            offerAmount: uint96(1_000e6),
+            user: user,
+            offer: address(boringVault),
+            want: address(USDC)
+        });
+        atomicQueue.updateAtomicRequest(req);
+        uint256 wantAmountReceived = atomicQueue.previewReceivedAmount(req);
+        assertEq(wantAmountReceived, 1_000e6);
+        vm.stopPrank();
+    }
     //============================== USER FUNCTIONS TESTS ================================
     function testUpdateAtomicRequest() external {
         vm.startPrank(user);
