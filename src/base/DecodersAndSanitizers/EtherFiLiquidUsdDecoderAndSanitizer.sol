@@ -36,8 +36,7 @@ contract EtherFiLiquidUsdDecoderAndSanitizer is
     LidoDecoderAndSanitizer
 {
     constructor(address _boringVault, address _uniswapV3NonFungiblePositionManager)
-        BaseDecoderAndSanitizer(_boringVault)
-        UniswapV3DecoderAndSanitizer(_uniswapV3NonFungiblePositionManager)
+        UniswapV3DecoderAndSanitizer(_boringVault)
     {}
 
     //============================== HANDLE FUNCTION COLLISIONS ===============================

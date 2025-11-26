@@ -918,6 +918,12 @@ contract DeployArcticArchitecture2 is Script, ContractNames {
             if (delayedWithdrawer.owner() != address(0)) delayedWithdrawer.transferOwnership(address(0));
 
             // Setup roles.
+            if (!rolesAuthority.doesUserHaveRole(address(manager), MANAGER_ROLE)) {
+                rolesAuthority.setUserRole(address(manager), MANAGER_ROLE, true);
+            }
+            if (!rolesAuthority.doesUserHaveRole(address(manager), MANAGER_INTERNAL_ROLE)) {
+                rolesAuthority.setUserRole(address(manager), MANAGER_INTERNAL_ROLE, true);
+            }
             if (!rolesAuthority.doesUserHaveRole(params.developmentAddress, STRATEGIST_ROLE)) {
                 rolesAuthority.setUserRole(params.developmentAddress, STRATEGIST_ROLE, true);
             }

@@ -91,15 +91,15 @@ contract DeployAtomicQueueScript is Script, ContractNames, OPAddresses {
         rolesAuthority.setPublicCapability(address(atomicSolver), AtomicSolverV4.redeemSolve.selector, true);
 
         // extra setting
-        atomicQueue.setMaturityTime(3 minutes);
+        // atomicQueue.setMaturityTime(3 minutes);
 
         // extra role setting for other contracts
         RolesAuthority vaultRolesAuthority = RolesAuthority(deployer.getAddress(UsdaiVaultRolesAuthorityName));
         vaultRolesAuthority.setUserRole(address(atomicSolver), 12, true); // 12: solver role
         vaultRolesAuthority.setUserRole(address(atomicQueue), 12, true); // 12: solver role
         vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiVaultTellerName), 3, true); // 3: buy role
-        vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiLayerZeroTellerName), 3, true); // 3: buy role
-        vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiChainlinkCCIPTellerName), 3, true); // 3: buy role
+        // vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiLayerZeroTellerName), 3, true); // 3: buy role
+        // vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiChainlinkCCIPTellerName), 3, true); // 3: buy role
         vm.stopBroadcast();
     }
 
