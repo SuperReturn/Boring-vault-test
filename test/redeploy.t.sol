@@ -18,7 +18,7 @@ import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.s
 import {Deployer} from "src/helper/Deployer.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {PlumeTestnetAddresses} from "test/resources/PlumeTestnetAddresses.sol";
+import {OPAddresses} from "test/resources/OPAddresses.sol";
 
 // Add this struct before the interface IBoringOnChainQueue
 struct OnChainWithdraw {
@@ -60,7 +60,7 @@ interface IBoringSolver {
  * The test must be executed before setting the new role authority and performing upgrades.
  * Remember to update the RPC endpoint, block number, baseAsset, and contract addresses (inherit and hardcode) for each chain before running the test.
  */
-contract RedeployTest is Test, ContractNames, PlumeTestnetAddresses{
+contract RedeployTest is Test, ContractNames, OPAddresses{
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -72,28 +72,49 @@ contract RedeployTest is Test, ContractNames, PlumeTestnetAddresses{
     address public user;
     address public admin;
 
-    address public constant superusd                    = address(0x1C6DfA6C99d83aE8b872C32119575ce24407767C);
+    address public constant superusd                    = address(0x139450C2dCeF827C9A2a0Bb1CB5506260940c9fd);
     
-    address public constant oldSuperusdDeployer         = address(0x62165b41138c5841c0a54137E6470FBfEdd18a2e);
-    address public constant oldSuperusdImpl             = address(0xD71A61A52d37DD5B740DA9e19aE5bA6eC1dDD13B);
-    address public constant oldSuperusdRolesAuthority   = address(0x482ff8226a3f213d5fDC053E40ebD14AA213A43b);
-    address public constant oldSuperusdAccountant       = address(0x05e118c77F6DFF4d26f9549A8A479C2049b81e50);
-    address public constant oldSuperusdLens             = address(0xd8b0c6ca82d912a5BcaC8cA299D2c0bc6E2527c1);
-    address public constant oldSuperusdManager          = address(0x26bd7bD8cD42e4B6a6B0805c0526833D2acd5Ec9);
-    address public constant oldSuperusdTeller           = address(0x4252B2aA01C3948562546feFf1c1Ac809645CfD3);
-    address public constant oldSuperusdSolver           = address(0x0ec3599353e592b4Ef69CC3A550d0923b077CAB5);
-    address public constant oldSuperusdQueue            = address(0x2f16484e1760Fa5A3266Ce3A9831ed1B63835753);
-    address public constant oldSuperusdQueueAuthority   = address(0xa566a8Ca5F93cdC1427b28420d4044A97BBd80Bd);
+    // sSuperUSD Vault RolesAuthority v0.0
+    address public constant oldSuperusdRolesAuthority   = address(0x31e311b75E753A961eB090dc29AfC1A23c57FF34);
+    // Deployer (Already deployed)
+    address public constant oldSuperusdDeployer         = address(0x1f082348a1f3C9eDfc31374913E0817055BA5F88);
+    // Accountant
+    address public constant oldSuperusdAccountant       = address(0xFec60259f315287252c495C5921A30209Dd1FA4e);
+    // // BoringVault implementation - previous
+    address public constant oldSuperusdImpl             = address(0xC9076fE64A20D446Cb1ab11c91828C9054005327);
+    // BoringVault implementation - new (for reference, not in use)
+    address public constant newSuperusdImpl             = address(0xB1916C00CEDdBfD5B8aF1B4f16BFCe84A0D0909f);
+    // Lens
+    address public constant oldSuperusdLens             = address(0xc43827a38AC3C495547bF466a90f4ec36f13AB66);
+    // ManagerWithMerkleVerification
+    address public constant oldSuperusdManager          = address(0x8E3c0Be2847999D63Ce8FeCd3368aaaC33572Ecd);
+    // TellerWithMultiAssetSupport
+    address public constant oldSuperusdTeller           = address(0xefCAEA1163cc9F328f303E3B49BCB9a54108938a);
+    // Solver
+    address public constant oldSuperusdSolver           = address(0xD755943d933526913F8dDa807f38650038856f1f);
+    // Queue
+    address public constant oldSuperusdQueue            = address(0x37a25d6B8118434b7513FEd84cbfde106D196107);
+    // sSuperUSD Boring OnChain Queues Roles Authority v0.0
+    address public constant oldSuperusdQueueAuthority   = address(0x0087C7545A9dc0761cC05BC835Ee6F7776F76924);
 
-    address public constant newSuperusdDeployer         = address(0x6A0FE0ab71583F23Ea62904cd2C98DD18E0F9096);
-    address public constant newSuperusdRolesAuthority   = address(0x9EcC12a700F4C971d69202b244fEbF30B947ecA5);
-    address public constant newSuperusdAccountant       = address(0x67Bc6036c34d244F0C4dDEDf697FD550C96147Cc);
-    address public constant newSuperusdLens             = address(0x7a935be5Aa25aE8A6961C500A14A078f7101A4E6);
-    address public constant newSuperusdManager          = address(0x9B7063A1a07Fec4e776ea139000239f5fC7Eab80);
-    address public constant newSuperusdTeller           = address(0x7CCd743d49f80dcA1c04667C2D7d0524f1244901);
-    address public constant newSuperusdSolver           = address(0x753684080CdA249f2238016c8DffA30809bb8d4A);
-    address public constant newSuperusdQueue            = address(0x044F86c77c872feA76C5b3D303541967ca976C4A);
-    address public constant newSuperusdQueueAuthority   = address(0x2185Fdd5cE287e4B4F40Cd1deEf3719A4284042a);
+    // sSuperUSD Vault RolesAuthority v1.0
+    address public constant newSuperusdRolesAuthority   = address(0xAa718B03071601b02bEe0Ab672Fb9F5997B250E7);
+    // Deployer (Already deployed)
+    address public constant newSuperusdDeployer         = address(0xb654e5d7F1dbFCe3945551a72764e7b06DB25994);
+    // Accountant
+    address public constant newSuperusdAccountant       = address(0x2B570475489e55b63bC5121EEe75f5D22C9C17C0);
+    // Lens
+    address public constant newSuperusdLens             = address(0xdcd147536a94260D27246dc1C82173a03a2f2582);
+    // ManagerWithMerkleVerification
+    address public constant newSuperusdManager          = address(0x95947f12D76Cb74Ca3F406dd0f7C1fb65e651Fd5);
+    // TellerWithMultiAssetSupport
+    address public constant newSuperusdTeller           = address(0xa8aA5c00d6c3f7A77FC5769770f6bC7b9244699b);
+    // Solver
+    address public constant newSuperusdSolver           = address(0x25019DAA4faa538996bA454D8c329f032011f104);
+    // Queue
+    address public constant newSuperusdQueue            = address(0xd484d2991D168b33cC61e25f80af0145883Bc465);
+    // sSuperUSD Boring OnChain Queues Roles Authority v1.0
+    address public constant newSuperusdQueueAuthority   = address(0xC5dD0cF14C3F0C5539ebEd0C067c3E3A9846a0b7);
 
     struct basicOperationParams {
         address teller;
@@ -107,9 +128,10 @@ contract RedeployTest is Test, ContractNames, PlumeTestnetAddresses{
 
     function setUp() external {
         // Setup forked environment.
-        string memory rpcKey = "PLUME_RPC_URL";
-        uint256 blockNumber = 22148000;
-        baseAsset = ERC20(PUSD);
+        string memory rpcKey = "OPTIMISM_RPC_URL";
+        uint256 blockNumber = 144260000;
+        // baseAsset = ERC20(USDC);
+        baseAsset = ERC20(USDAI);
 
         _startFork(rpcKey, blockNumber);
 
@@ -119,12 +141,11 @@ contract RedeployTest is Test, ContractNames, PlumeTestnetAddresses{
         user = vm.addr(100);
 
         vm.startPrank(admin);
+        
+        boringVault.setAuthority(Authority(newSuperusdRolesAuthority));
     }
 
     function testUpdateBoringVaultRoleAuthority() external {
-        // Set new role authority here
-        boringVault.setAuthority(Authority(newSuperusdRolesAuthority));
-        
         // After switching authority, basic operations work with new contracts
         vm.stopPrank();
         vm.startPrank(user);
@@ -183,6 +204,7 @@ contract RedeployTest is Test, ContractNames, PlumeTestnetAddresses{
         
         // the basic operation should work
         vm.startPrank(user);
+
         basicOperationAndViewWithNewDeployment(
             basicOperationParams(
                 newSuperusdTeller,
@@ -254,6 +276,7 @@ contract RedeployTest is Test, ContractNames, PlumeTestnetAddresses{
 
         // 2. send withdraw queue and solve
         deal(address(params.boringVault), user, 1e6);
+        deal(address(baseAsset), params.boringVault, 10e6);
         ERC20(params.boringVault).safeApprove(address(params.queue), type(uint256).max);
         bytes32 requestId = IBoringOnChainQueue(params.queue).requestOnChainWithdraw(
             address(baseAsset),
@@ -263,7 +286,9 @@ contract RedeployTest is Test, ContractNames, PlumeTestnetAddresses{
         );
         OnChainWithdraw memory onChainWithdraw = IBoringOnChainQueue(params.queue).getOnChainWithdraw(requestId);
 
-        vm.warp(block.timestamp + 10 minutes - 1);
+        vm.warp(block.timestamp + 86400 + 1);
+        // 0x78b2b007: BoringOnChainQueue__DeadlinePassed()
+        // 0x32924a49: BoringOnChainQueue__NotMatured()
         // After entering the vault, it will check the authorization using the authority set on the BoringVault,
         // so the previous teller will revert when executing.
         vm.expectRevert("UNAUTHORIZED");
