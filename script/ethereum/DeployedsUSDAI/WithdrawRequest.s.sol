@@ -7,13 +7,13 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
+import {OPAddresses} from "test/resources/OPAddresses.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 
-contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, MerkleTreeHelper {
+contract sUSDAIWithdrawRequestScript is Script, OPAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     BoringVault boringVault;
@@ -27,12 +27,12 @@ contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
     uint256 withdrawShares;
 
     function setUp() public {
-        vm.createSelectFork("mainnet");
-        setSourceChainName("sepolia");
+        vm.createSelectFork("optimism");
+        setSourceChainName("optimism");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances
-        boringVault = BoringVault(payable(previoussSuperUSDVault));
+        boringVault = BoringVault(payable(previoussSuperUSD));
         teller = TellerWithMultiAssetSupport(deployer.getAddress(sUsdaiVaultTellerName));
         lens = ArcticArchitectureLens(deployer.getAddress(sUsdaiArcticArchitectureLensName));
         accountant = AccountantWithRateProviders(deployer.getAddress(sUsdaiVaultAccountantName));
@@ -45,19 +45,11 @@ contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
         
         initialShares = boringVault.balanceOf(user);
         
-        withdrawShares = 1 * 1e3;
+        withdrawShares = 1 * 1e5;
         vm.startBroadcast(privateKey);
-        
-        console.log("=== Initial State ===");
-        console.log("User address:", user);
-        console.log("USDAI balance:", USDAI.balanceOf(user) / 1e6, "USDAI");
-        console.log("Vault share balance:", boringVault.balanceOf(user) / 1e6, "shares");
-        
-        uint256 sharesValue = lens.balanceOfInAssets(user, boringVault, accountant);
-        console.log("Value of shares in USDAI:", sharesValue / 1e6, "USDAI");
-        
+
         // Check if user has shares to withdraw
-        if (initialShares > withdrawShares) {
+        if (initialShares >= withdrawShares) {
             console.log("\n=== Requesting Withdrawal via Queue ===");
             console.log("Requesting withdrawal of shares amount:", withdrawShares / 1e6, "shares");
             
@@ -66,7 +58,7 @@ contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
 
             // Create atomic request
             AtomicRequest memory request = AtomicRequest({
-                deadline: uint64(block.timestamp + 10000 minutes), // 10 minutes deadline
+                deadline: uint64(block.timestamp + 10000 minutes), 
                 creationTime: uint64(block.timestamp),
                 offerAmount: uint96(withdrawShares),
                 user: user,
@@ -79,14 +71,20 @@ contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
 
             console.log("Withdrawal request created");
 
-            // Get the request details
-            // AtomicRequest memory userRequest = queue.getUserAtomicRequest(user, boringVault, USDAI);
-            // console.log("\n=== Withdraw Request Details ===");
-            // console.log("Deadline:", userRequest.deadline);
-            // console.log("Atomic Price:", uint256(userRequest.atomicPrice) / 1e6);
-            // console.log("Offer Amount (shares):", uint256(userRequest.offerAmount) / 1e6);
-            // console.log("In Solve:", userRequest.inSolve);
-
+            // Get the request IDs and display the first one
+            // bytes32[] memory requestIds = queue.getUserAtomicRequestIds(user, boringVault, USDC);
+            // if (requestIds.length > 0) {
+            //     console.log("Request ID:", uint256(requestIds[0]));
+                
+            //     // Decode request information from ID
+            //     (,,,uint64 deadline, uint88 atomicPrice, uint96 offerAmount) = 
+            //         abi.decode(requestIds[0], (address, address, address, uint64, uint88, uint96));
+                
+            //     console.log("Request details:");
+            //     console.log("- Deadline:", deadline);
+            //     console.log("- Atomic Price:", atomicPrice);
+            //     console.log("- Offer Amount:", offerAmount);
+            // }
         } else {
             console.log("No shares available for withdrawal");
         }

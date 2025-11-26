@@ -7,63 +7,41 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {OPAddresses} from "test/resources/OPAddresses.sol";
+import {SepoliaAddresses} from "test/resources/SepoliaAddresses.sol";
+import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 
-/**
- * @title USDAI Deposit Integration Test
- * @notice This script demonstrates how to deposit USDC into the USDAI vault on Sepolia
- * @dev Run with: forge script script/USDAIIntegrationTest/Deposit.sol --rpc-url $MINATO_RPC_URL
- */
-contract sUSDAIDepositScript is Script, OPAddresses, ContractNames, MerkleTreeHelper{
-    // Test parameters
-    uint256 public constant USDAI_DEPOSIT_AMOUNT = 2 * 1e5; // 1 USDAI (6 decimals)
-    
+contract sUSDAIInstantWithdrawScript is Script, SepoliaAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     BoringVault boringVault;
     TellerWithMultiAssetSupport teller;
     ArcticArchitectureLens lens;
     AccountantWithRateProviders accountant;
+    AtomicQueue queue;
 
     function setUp() public {
-        vm.createSelectFork("optimism");
-        setSourceChainName("optimism");
+        vm.createSelectFork("sepolia");
+        setSourceChainName("sepolia");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances
-        boringVault = BoringVault(payable(previoussSuperUSD));
+        boringVault = BoringVault(payable(deployer.getAddress(sUsdaiVaultName)));
         teller = TellerWithMultiAssetSupport(deployer.getAddress(sUsdaiVaultTellerName));
         lens = ArcticArchitectureLens(deployer.getAddress(sUsdaiArcticArchitectureLensName));
         accountant = AccountantWithRateProviders(deployer.getAddress(sUsdaiVaultAccountantName));
+        queue = AtomicQueue(deployer.getAddress(sUsdaiVaultQueueName));
     }
 
     function run() public {
-        // Get the private key from environment variable
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         address user = vm.addr(privateKey);
-        
-        // Start broadcasting transactions
         vm.startBroadcast(privateKey);
+        ERC20(address(boringVault)).approve(address(queue), 1e5);
+        queue.instantWithdraw(ERC20(address(boringVault)), USDAI, 1e5, 0, teller);
         
-        // Deposit USDC
-        if (USDAI.balanceOf(user) >= USDAI_DEPOSIT_AMOUNT) {
-            console.log("\n=== Depositing USDAI ===");
-
-            USDAI.approve(address(boringVault), USDAI_DEPOSIT_AMOUNT);
-
-            // // Deposit USDAI
-            uint256 sharesBefore = boringVault.balanceOf(user);
-            teller.deposit(USDAI, USDAI_DEPOSIT_AMOUNT, 0);
-            uint256 sharesAfter = boringVault.balanceOf(user);
-            
-            console.log("Actual shares received:", (sharesAfter - sharesBefore) / 1e6);
-        } else {
-            console.log("Insufficient USDAI balance for deposit");
-        }
-
         vm.stopBroadcast();
     }
 }

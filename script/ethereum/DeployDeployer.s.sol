@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import {Deployer} from "src/helper/Deployer.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
+import {EthereumAddresses} from "test/resources/EthereumAddresses.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -13,7 +13,7 @@ import "forge-std/StdJson.sol";
  *  source .env && forge script script/DeployDeployer.s.sol:DeployDeployerScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployDeployerScript is Script, ContractNames, MainnetAddresses {
+contract DeployDeployerScript is Script, ContractNames, EthereumAddresses {
     uint256 public privateKey;
 
     // Contracts to deploy
@@ -50,7 +50,7 @@ contract DeployDeployerScript is Script, ContractNames, MainnetAddresses {
         creationCode = type(RolesAuthority).creationCode;
         constructorArgs = abi.encode(dev0Address, Authority(address(0)));
         rolesAuthority =
-            RolesAuthority(previousRolesAuthority);
+            RolesAuthority(deployer.deployContract(UsdaiVaultRolesAuthorityName, creationCode, constructorArgs, 0));
 
         deployer.setAuthority(rolesAuthority);
 

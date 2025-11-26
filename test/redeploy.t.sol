@@ -18,7 +18,7 @@ import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.s
 import {Deployer} from "src/helper/Deployer.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {SoneiumAddresses} from "test/resources/SoneiumAddresses.sol";
+import {EthereumAddresses} from "test/resources/EthereumAddresses.sol";
 
 // Add this struct before the interface IBoringOnChainQueue
 struct OnChainWithdraw {
@@ -60,7 +60,7 @@ interface IBoringSolver {
  * The test must be executed before setting the new role authority and performing upgrades.
  * Remember to update the RPC endpoint, block number, baseAsset, and contract addresses (inherit and hardcode) for each chain before running the test.
  */
-contract RedeployTest is Test, ContractNames, SoneiumAddresses{
+contract RedeployTest is Test, ContractNames, EthereumAddresses{
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -176,8 +176,8 @@ contract RedeployTest is Test, ContractNames, SoneiumAddresses{
 
     function setUp() external {
         // Setup forked environment.
-        string memory rpcKey = "SONEIUM_RPC_URL";
-        uint256 blockNumber = 15506470;
+        string memory rpcKey = "MAINNET_RPC_URL";
+        uint256 blockNumber = 23882936;
         // baseAsset = ERC20(USDC);
         baseAsset = ERC20(USDAI);
 
@@ -334,7 +334,7 @@ contract RedeployTest is Test, ContractNames, SoneiumAddresses{
         );
         OnChainWithdraw memory onChainWithdraw = IBoringOnChainQueue(params.queue).getOnChainWithdraw(requestId);
 
-        vm.warp(block.timestamp + 180 - 1);
+        vm.warp(block.timestamp + 180 + 1);
         // 0x78b2b007: BoringOnChainQueue__DeadlinePassed()
         // 0x32924a49: BoringOnChainQueue__NotMatured()
         // After entering the vault, it will check the authorization using the authority set on the BoringVault,

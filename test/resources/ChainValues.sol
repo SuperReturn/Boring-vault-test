@@ -63,12 +63,13 @@ contract ChainValues {
 
     constructor() {
         // Add mainnet values
-        _addMainnetValues();
+        // _addMainnetValues();
         _addBaseValues();
         _addArbitrumValues();
         _addOptimismValues();
         _addPlumeValues();
         _addSoneiumValues();
+        _addEthereumValues();
         
         // Add testnet values
         _addSepoliaValues();
@@ -916,6 +917,20 @@ contract ChainValues {
         values[soneium]["USDAI"] = 0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB.toBytes32();
         // CCIP token transfers.
         values[soneium]["ccipRouter"] = 0x443a1bce545d56E2c3f20ED32eA588395FFce0f4.toBytes32();
+    }
+
+    function _addEthereumValues() private {
+        values[mainnet]["deployerAddress"] = 0xb654e5d7F1dbFCe3945551a72764e7b06DB25994.toBytes32();
+        values[mainnet]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
+        values[mainnet]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
+
+        values[mainnet]["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48.toBytes32();
+        values[mainnet]["USDT"] = 0xdAC17F958D2ee523a2206206994597C13D831ec7.toBytes32();
+        values[mainnet]["USDAI"] = 0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB.toBytes32();
+
+        values[mainnet]["USDOExpress"] = 0xD65eF7fF5e7B3DBCCD07F6637Dc47101311ecEe6.toBytes32();
+        // CCIP token transfers.
+        values[mainnet]["ccipRouter"] = 0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59.toBytes32();
     }
 
     function _addSepoliaValues() private {

@@ -7,13 +7,13 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
+import {OPAddresses} from "test/resources/OPAddresses.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 
-contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, MerkleTreeHelper {
+contract USDAIWithdrawRequestScript is Script, OPAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     BoringVault boringVault;
@@ -27,12 +27,12 @@ contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
     uint256 withdrawShares;
 
     function setUp() public {
-        vm.createSelectFork("mainnet");
-        setSourceChainName("sepolia");
+        vm.createSelectFork("optimism");
+        setSourceChainName("optimism");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances
-        boringVault = BoringVault(payable(previousVault));
+        boringVault = BoringVault(payable(previoussuperUSD));
         teller = TellerWithMultiAssetSupport(deployer.getAddress(UsdaiVaultTellerName));
         lens = ArcticArchitectureLens(deployer.getAddress(UsdaiArcticArchitectureLensName));
         accountant = AccountantWithRateProviders(deployer.getAddress(UsdaiVaultAccountantName));
@@ -45,19 +45,11 @@ contract USDAIWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
         
         initialShares = boringVault.balanceOf(user);
         
-        withdrawShares = 1 * 1e3;
+        withdrawShares = 1 * 1e5;
         vm.startBroadcast(privateKey);
-        
-        console.log("=== Initial State ===");
-        console.log("User address:", user);
-        console.log("USDC balance:", USDC.balanceOf(user) / 1e6, "USDC");
-        console.log("Vault share balance:", boringVault.balanceOf(user) / 1e6, "shares");
-        
-        uint256 sharesValue = lens.balanceOfInAssets(user, boringVault, accountant);
-        console.log("Value of shares in USDC:", sharesValue / 1e6, "USDC");
-        
+
         // Check if user has shares to withdraw
-        if (initialShares > withdrawShares) {
+        if (initialShares >= withdrawShares) {
             console.log("\n=== Requesting Withdrawal via Queue ===");
             console.log("Requesting withdrawal of shares amount:", withdrawShares / 1e6, "shares");
             

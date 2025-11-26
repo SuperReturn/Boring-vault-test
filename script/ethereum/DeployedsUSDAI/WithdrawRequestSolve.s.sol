@@ -6,14 +6,14 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {BoringVault} from "src/base/BoringVault.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {AtomicSolverV4} from "src/atomic-queue/AtomicSolverV4.sol";
-import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
+import {OPAddresses} from "test/resources/OPAddresses.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 import {console} from "forge-std/console.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 
-contract SolveWithdrawRequestScript is Script, MainnetAddresses, ContractNames, MerkleTreeHelper {
+contract SolveWithdrawRequestScript is Script, OPAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     AtomicQueue queue;
@@ -22,12 +22,12 @@ contract SolveWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
     TellerWithMultiAssetSupport teller;
     
     function setUp() public {
-        vm.createSelectFork("mainnet");
-        setSourceChainName("sepolia");
+        vm.createSelectFork("optimism");
+        setSourceChainName("optimism");
         
         // Initialize contract instances
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
-        boringVault = BoringVault(payable(previoussSuperUSDVault));
+        boringVault = BoringVault(payable(previoussSuperUSD));
         queue = AtomicQueue(deployer.getAddress(sUsdaiVaultQueueName));
         solver = AtomicSolverV4(deployer.getAddress(sUsdaiVaultQueueSolverName));
         teller = TellerWithMultiAssetSupport(deployer.getAddress(sUsdaiVaultTellerName));
@@ -35,42 +35,30 @@ contract SolveWithdrawRequestScript is Script, MainnetAddresses, ContractNames, 
 
     function run() public {
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
+        address user = vm.addr(privateKey);
         
         vm.startBroadcast(privateKey);
         
-        // address user = vm.addr(privateKey);
-        // AtomicRequest memory request = queue.getUserAtomicRequest(user, boringVault, USDAI);
+        // Get user's request IDs
+        (bytes32[] memory requestIds, AtomicRequest[] memory requests) = queue.getExistingWithdrawRequestsByUser(user);
+        require(requestIds.length > 0, "No requests found");
         
-        // // Calculate required assets based on atomic price
-        // uint256 assetsRequired = (uint256(request.offerAmount) * uint256(request.atomicPrice)) / 1e6;
-        
-        // // Prepare solver parameters
-        // address[] memory users = new address[](1);
-        // users[0] = user;
-        
-        // // Set reasonable limits
-        // uint256 minAssetDelta = 0; // Minimum profit we want to make
-        // uint256 maxAssets = assetsRequired; // Maximum assets we're willing to spend
-        
-        // // Make sure solver has enough USDAI approved
-        // USDAI.approve(address(solver), maxAssets);
-        
-        // // Call redeemSolve
-        // solver.redeemSolve(
-        //     queue,
-        //     ERC20(address(boringVault)), // offer (boringVault shares)
-        //     USDAI, // want (USDAI)
-        //     users,
-        //     minAssetDelta,
-        //     maxAssets,
-        //     teller
-        // );
+        // Call redeemSolve
+        solver.redeemSolve(
+            queue,
+            0,
+            type(uint256).max,
+            teller,
+            requests[0]
+        );
         
         vm.stopBroadcast();
         
         // console.log("=== Solve Complete ===");
         // console.log("User:", user);
-        // console.log("Shares Solved:", request.offerAmount);
+        // console.log("Shares Solved:", offerAmount);
         // console.log("Assets Required:", assetsRequired);
+        // console.log("Request Deadline:", deadline);
+        // console.log("Atomic Price:", atomicPrice);
     }
 }
