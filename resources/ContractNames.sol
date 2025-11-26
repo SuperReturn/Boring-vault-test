@@ -21,7 +21,7 @@ contract ContractNames {
     string public constant UsdaiVaultName = "SuperUSD Vault V0.0";
     string public constant UsdaiVaultManagerName = "SuperUSD Vault Manager With Merkle Verification V0.0";
     string public constant UsdaiVaultAccountantName = "SuperUSD Vault Accountant With Rate Providers V0.0";
-    string public constant UsdaiVaultTellerName = "SuperUSD Vault Teller With Multi Asset Support V0.0";
+    string public constant UsdaiVaultTellerName = "SuperUSD Vault Teller With Multi Asset Support V1.0";
     string public constant UsdaiVaultDecoderAndSanitizerName = "SuperUSD Vault Decoder and Sanitizer V0.0";
     string public constant UsdaiVaultDelayedWithdrawer = "SuperUSD Vault Delayed Withdrawer V0.0";
     string public constant UsdaiVaultQueueName = "SuperUSD Vault Queue V0.4";
@@ -44,7 +44,7 @@ contract ContractNames {
     string public constant sUsdaiVaultName = "sSuperUSD Vault V0.0";
     string public constant sUsdaiVaultManagerName = "sSuperUSD Vault Manager With Merkle Verification V0.0";
     string public constant sUsdaiVaultAccountantName = "sSuperUSD Vault Accountant With Rate Providers V0.0";
-    string public constant sUsdaiVaultTellerName = "sSuperUSD Vault Teller With Multi Asset Support V0.0";
+    string public constant sUsdaiVaultTellerName = "sSuperUSD Vault Teller With Multi Asset Support V1.0";
     string public constant sUsdaiVaultDecoderAndSanitizerName = "sSuperUSD Vault Decoder and Sanitizer V0.0";
     string public constant sUsdaiVaultDelayedWithdrawer = "sSuperUSD Vault Delayed Withdrawer V0.0";
     string public constant sUsdaiVaultQueueName = "sSuperUSD Vault Queue V0.3";
@@ -54,7 +54,7 @@ contract ContractNames {
     string public constant sUsdaiBaseDecoderAndSanitizerName = "sSuperUSD Base Decoder and Sanitizer V0.0";
 
     // zaps
-    string public constant sSuperUSDZapTellerName = "sSuperUSD Zap Teller V0.0";
-    string public constant sSuperUSDSakeZapTellerName = "sSuperUSD Sake Zap Teller V0.0";
+    string public constant sSuperUSDZapTellerName = "sSuperUSD Zap Teller V1.0";
+    string public constant sSuperUSDSakeZapTellerName = "sSuperUSD Sake Zap Teller V1.0";
 
 }
