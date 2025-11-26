@@ -16,6 +16,7 @@ contract ChainValues {
     string public constant optimism = "optimism";
     string public constant base = "base";
     string public constant plume = "plume";
+    string public constant soneium = "soneium";
 
     string public constant sepolia = "sepolia";
     string public constant katanabokuto = "katanabokuto";
@@ -67,6 +68,7 @@ contract ChainValues {
         _addArbitrumValues();
         _addOptimismValues();
         _addPlumeValues();
+        _addSoneiumValues();
         
         // Add testnet values
         _addSepoliaValues();
@@ -901,6 +903,19 @@ contract ChainValues {
         values[plume]["roosterRouter"] = 0xa7620c9aC50F64C1B73F8601EB1Bfa4e0cf0C617.toBytes32();
         values[plume]["roosterPool"] = 0x05ACF22149Bb67A682e652674B6901F02CB57731.toBytes32();
         values[plume]["WPLUME"] = 0xEa237441c92CAe6FC17Caaf9a7acB3f953be4bd1.toBytes32();
+    }
+
+    function _addSoneiumValues() private {
+        values[soneium]["deployerAddress"] = 0xb654e5d7F1dbFCe3945551a72764e7b06DB25994.toBytes32();
+        values[soneium]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
+        values[soneium]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
+        
+        values[soneium]["USDC"] = 0xbA9986D2381edf1DA03B0B9c1f8b00dc4AacC369.toBytes32();
+        values[soneium]["ASTR"] = 0xbA9986D2381edf1DA03B0B9c1f8b00dc4AacC369.toBytes32(); // this one is fake
+        values[soneium]["v3Pool"] = 0x3C3987A310ee13F7B8cBBe21D97D4436ba5E4B5f.toBytes32();
+        values[soneium]["USDAI"] = 0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB.toBytes32();
+        // CCIP token transfers.
+        values[soneium]["ccipRouter"] = 0x443a1bce545d56E2c3f20ED32eA588395FFce0f4.toBytes32();
     }
 
     function _addSepoliaValues() private {

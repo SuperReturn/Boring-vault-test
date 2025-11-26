@@ -18,7 +18,7 @@ import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.s
 import {Deployer} from "src/helper/Deployer.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {PlumeAddresses} from "test/resources/PlumeAddresses.sol";
+import {SoneiumAddresses} from "test/resources/SoneiumAddresses.sol";
 
 // Add this struct before the interface IBoringOnChainQueue
 struct OnChainWithdraw {
@@ -60,7 +60,7 @@ interface IBoringSolver {
  * The test must be executed before setting the new role authority and performing upgrades.
  * Remember to update the RPC endpoint, block number, baseAsset, and contract addresses (inherit and hardcode) for each chain before running the test.
  */
-contract RedeployTest is Test, ContractNames, PlumeAddresses{
+contract RedeployTest is Test, ContractNames, SoneiumAddresses{
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -176,8 +176,8 @@ contract RedeployTest is Test, ContractNames, PlumeAddresses{
 
     function setUp() external {
         // Setup forked environment.
-        string memory rpcKey = "PLUME_MAINNET_RPC_URL";
-        uint256 blockNumber = 40047201;
+        string memory rpcKey = "SONEIUM_RPC_URL";
+        uint256 blockNumber = 15506470;
         // baseAsset = ERC20(USDC);
         baseAsset = ERC20(USDAI);
 
