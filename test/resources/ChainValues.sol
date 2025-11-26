@@ -66,6 +66,7 @@ contract ChainValues {
         _addBaseValues();
         _addArbitrumValues();
         _addOptimismValues();
+        _addPlumeValues();
         
         // Add testnet values
         _addSepoliaValues();
@@ -888,6 +889,18 @@ contract ChainValues {
         values[optimism]["ETH"] = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE.toBytes32();
         values[optimism]["OP"] = 0x4200000000000000000000000000000000000042.toBytes32();
         values[optimism]["USDC"] = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85.toBytes32();
+    }
+
+    function _addPlumeValues() private {
+        values[plume]["deployerAddress"] = 0xb654e5d7F1dbFCe3945551a72764e7b06DB25994.toBytes32();
+        values[plume]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
+        values[plume]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
+        values[plume]["USDC"] = 0x78adD880A697070c1e765Ac44D65323a0DcCE913.toBytes32();
+        values[plume]["PUSD"] = 0xdddD73F5Df1F0DC31373357beAC77545dC5A6f3F.toBytes32();
+        values[plume]["USDAI"] = 0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB.toBytes32();
+        values[plume]["roosterRouter"] = 0xa7620c9aC50F64C1B73F8601EB1Bfa4e0cf0C617.toBytes32();
+        values[plume]["roosterPool"] = 0x05ACF22149Bb67A682e652674B6901F02CB57731.toBytes32();
+        values[plume]["WPLUME"] = 0xEa237441c92CAe6FC17Caaf9a7acB3f953be4bd1.toBytes32();
     }
 
     function _addSepoliaValues() private {

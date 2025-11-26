@@ -6,14 +6,14 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {BoringVault} from "src/base/BoringVault.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {AtomicSolverV4} from "src/atomic-queue/AtomicSolverV4.sol";
-import {SepoliaAddresses} from "test/resources/SepoliaAddresses.sol";
+import {OPAddresses} from "test/resources/OPAddresses.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 import {console} from "forge-std/console.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 
-contract SolveWithdrawRequestScript is Script, SepoliaAddresses, ContractNames, MerkleTreeHelper {
+contract SolveWithdrawRequestScript is Script, OPAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     AtomicQueue queue;
@@ -22,12 +22,12 @@ contract SolveWithdrawRequestScript is Script, SepoliaAddresses, ContractNames, 
     TellerWithMultiAssetSupport teller;
     
     function setUp() public {
-        vm.createSelectFork("sepolia");
-        setSourceChainName("sepolia");
+        vm.createSelectFork("optimism");
+        setSourceChainName("optimism");
         
         // Initialize contract instances
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
-        boringVault = BoringVault(payable(deployer.getAddress(sUsdaiVaultName)));
+        boringVault = BoringVault(payable(previoussSuperUSD));
         queue = AtomicQueue(deployer.getAddress(sUsdaiVaultQueueName));
         solver = AtomicSolverV4(deployer.getAddress(sUsdaiVaultQueueSolverName));
         teller = TellerWithMultiAssetSupport(deployer.getAddress(sUsdaiVaultTellerName));

@@ -18,7 +18,7 @@ import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.s
 import {Deployer} from "src/helper/Deployer.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {OPAddresses} from "test/resources/OPAddresses.sol";
+import {PlumeAddresses} from "test/resources/PlumeAddresses.sol";
 
 // Add this struct before the interface IBoringOnChainQueue
 struct OnChainWithdraw {
@@ -60,7 +60,7 @@ interface IBoringSolver {
  * The test must be executed before setting the new role authority and performing upgrades.
  * Remember to update the RPC endpoint, block number, baseAsset, and contract addresses (inherit and hardcode) for each chain before running the test.
  */
-contract RedeployTest is Test, ContractNames, OPAddresses{
+contract RedeployTest is Test, ContractNames, PlumeAddresses{
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
@@ -72,6 +72,58 @@ contract RedeployTest is Test, ContractNames, OPAddresses{
     address public user;
     address public admin;
 
+// superUSD
+
+    // address public constant superusd                    = address(0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB);
+
+    // // SuperUSD Vault RolesAuthority v0.0
+    // address public constant oldSuperusdRolesAuthority   = address(0x4FA024546d245f617dAAe796470721bC5D95E856);
+    // // Deployer (Already deployed)
+    // address public constant oldSuperusdDeployer         = address(0x1f082348a1f3C9eDfc31374913E0817055BA5F88);
+    // // Accountant (fixed rate)
+    // address public constant oldSuperusdAccountant       = address(0xF4a5555C5716bb61DC9C9124257e92683f98415B);
+    // // BoringVault
+    // address public constant oldSuperusdBoringVault      = address(0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB);
+    // // Lens
+    // address public constant oldSuperusdLens             = address(0x4a05CbB107E9964fa61D04cBF60c049F96eBBf56);
+    // // ManagerWithMerkleVerification
+    // address public constant oldSuperusdManager          = address(0x65EA811bA829dC166B7FCF25369bBF6BC33DA14d);
+    // // TellerWithMultiAssetSupport
+    // address public constant oldSuperusdTeller           = address(0xB08efd111caf0b45a038Eb07c370D068E55cc233);
+    // // Solver
+    // address public constant oldSuperusdSolver           = address(0x630f595A5aA09ff1b5c11FAd8Cf78a8109776ABc);
+    // // Queue
+    // address public constant oldSuperusdQueue            = address(0xDB6C5dC3e4802243f0c40e1883eA833Aa7a93588);
+    // // SuperUSD Boring OnChain Queues Roles Authority V0.0
+    // address public constant oldSuperusdQueueAuthority   = address(0xAE35B87121B2Ae2e8013DF2B6D35CEB76E110D33);
+    // // LZ teller
+    // address public constant oldSuperusdLZteller         = address(0x91c6Ea9Cdb919523Fd4B3027db90EeB0A9f9D66C);
+
+    // // SuperUSD Vault RolesAuthority v1.0
+    // address public constant newSuperusdRolesAuthority   = address(0x0953c2E6c82633CdA982E90A6287f66493c5cF0B);
+    // // Deployer (Already deployed)
+    // address public constant newSuperusdDeployer         = address(0xb654e5d7F1dbFCe3945551a72764e7b06DB25994);
+    // // Accountant (fixed rate)
+    // address public constant newSuperusdAccountant       = address(0x0427645BceA78A84A84eFBc26d51f87176581cd9);
+    // // BoringVault
+    // address public constant newSuperusdBoringVault      = address(0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB);
+    // // BoringVault implementation
+    // address public constant newSuperusdImpl             = address(0xe9460F59824a047cCCd794af254c8A467c6D05fa);
+    // // Lens
+    // address public constant newSuperusdLens             = address(0x1E0f8Cad571643e52C1FAcDBB2C005141c2f4b66);
+    // // ManagerWithMerkleVerification
+    // address public constant newSuperusdManager          = address(0xA78e8Ae84BEc9E66486fbC0e87E720Fd6342ef39);
+    // // TellerWithMultiAssetSupport
+    // address public constant newSuperusdTeller           = address(0xF62D61F304C9c65C96a94c2b0b93c8f93C96e91D);
+    // // Solver
+    // address public constant newSuperusdSolver           = address(0x1DB629316B3fB6B026f9ebD5c379a72235a4d5E9);
+    // // Queue
+    // address public constant newSuperusdQueue            = address(0xf3aA6324Aa5C9Ded16Eb7ED651152aC30588BAc1);
+    // // SuperUSD Boring OnChain Queues Roles Authority V1.0
+    // address public constant newSuperusdQueueAuthority   = address(0x58A6481706E4260ef50D362401C7F0357b13AB53);
+
+// sSuperUSD
+
     address public constant superusd                    = address(0x139450C2dCeF827C9A2a0Bb1CB5506260940c9fd);
     
     // sSuperUSD Vault RolesAuthority v0.0
@@ -80,10 +132,6 @@ contract RedeployTest is Test, ContractNames, OPAddresses{
     address public constant oldSuperusdDeployer         = address(0x1f082348a1f3C9eDfc31374913E0817055BA5F88);
     // Accountant
     address public constant oldSuperusdAccountant       = address(0xFec60259f315287252c495C5921A30209Dd1FA4e);
-    // // BoringVault implementation - previous
-    address public constant oldSuperusdImpl             = address(0xC9076fE64A20D446Cb1ab11c91828C9054005327);
-    // BoringVault implementation - new (for reference, not in use)
-    address public constant newSuperusdImpl             = address(0xB1916C00CEDdBfD5B8aF1B4f16BFCe84A0D0909f);
     // Lens
     address public constant oldSuperusdLens             = address(0xc43827a38AC3C495547bF466a90f4ec36f13AB66);
     // ManagerWithMerkleVerification
@@ -128,8 +176,8 @@ contract RedeployTest is Test, ContractNames, OPAddresses{
 
     function setUp() external {
         // Setup forked environment.
-        string memory rpcKey = "OPTIMISM_RPC_URL";
-        uint256 blockNumber = 144260000;
+        string memory rpcKey = "PLUME_MAINNET_RPC_URL";
+        uint256 blockNumber = 40047201;
         // baseAsset = ERC20(USDC);
         baseAsset = ERC20(USDAI);
 
@@ -286,7 +334,7 @@ contract RedeployTest is Test, ContractNames, OPAddresses{
         );
         OnChainWithdraw memory onChainWithdraw = IBoringOnChainQueue(params.queue).getOnChainWithdraw(requestId);
 
-        vm.warp(block.timestamp + 86400 + 1);
+        vm.warp(block.timestamp + 180 - 1);
         // 0x78b2b007: BoringOnChainQueue__DeadlinePassed()
         // 0x32924a49: BoringOnChainQueue__NotMatured()
         // After entering the vault, it will check the authorization using the authority set on the BoringVault,

@@ -7,13 +7,13 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {SepoliaAddresses} from "test/resources/SepoliaAddresses.sol";
+import {OPAddresses} from "test/resources/OPAddresses.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 
-contract USDAIWithdrawRequestScript is Script, SepoliaAddresses, ContractNames, MerkleTreeHelper {
+contract USDAIWithdrawRequestScript is Script, OPAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     BoringVault boringVault;
@@ -27,12 +27,12 @@ contract USDAIWithdrawRequestScript is Script, SepoliaAddresses, ContractNames, 
     uint256 withdrawShares;
 
     function setUp() public {
-        vm.createSelectFork("sepolia");
-        setSourceChainName("sepolia");
+        vm.createSelectFork("optimism");
+        setSourceChainName("optimism");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances
-        boringVault = BoringVault(payable(deployer.getAddress(UsdaiVaultName)));
+        boringVault = BoringVault(payable(previoussuperUSD));
         teller = TellerWithMultiAssetSupport(deployer.getAddress(UsdaiVaultTellerName));
         lens = ArcticArchitectureLens(deployer.getAddress(UsdaiArcticArchitectureLensName));
         accountant = AccountantWithRateProviders(deployer.getAddress(UsdaiVaultAccountantName));

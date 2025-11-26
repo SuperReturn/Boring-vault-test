@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import {DeployArcticArchitecture2, ERC20, Deployer} from "script/ArchitectureDeployments/DeployArcticArchitecture2.sol";
 import {AddressToBytes32Lib} from "src/helper/AddressToBytes32Lib.sol";
-import {PlumeTestnetAddresses} from "test/resources/PlumeTestnetAddresses.sol";
+import {PlumeAddresses} from "test/resources/PlumeAddresses.sol";
 
 // Import Decoder and Sanitizer to deploy.
 import {ITBPositionDecoderAndSanitizer} from
@@ -13,7 +13,7 @@ import {ITBPositionDecoderAndSanitizer} from
  *  source .env && forge script script/ArchitectureDeployments/DeployTestVault.s.sol:DeployTestVaultScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployTestVaultScript is DeployArcticArchitecture2, PlumeTestnetAddresses {
+contract DeployTestVaultScript is DeployArcticArchitecture2, PlumeAddresses {
     using AddressToBytes32Lib for address;
 
     uint256 public privateKey;
@@ -116,7 +116,7 @@ contract DeployTestVaultScript is DeployArcticArchitecture2, PlumeTestnetAddress
 
         _deploy(DeployParams({
             previousBoringVault: previoussuperUSD,
-            deploymentFileName: "SuperUSDPlumeTestnetDeployment.json",
+            deploymentFileName: "SuperUSDPlumeDeployment.json",
             owner: owner,
             boringVaultName: boringVaultName,
             boringVaultSymbol: boringVaultSymbol,

@@ -888,8 +888,6 @@ contract DeployArcticArchitecture is Script, ContractNames {
             // Setup share lock period.
             if (teller.shareLockPeriod() != params.shareLockPeriod) teller.setShareLockPeriod(params.shareLockPeriod);
             if (address(boringVault.hook()) != address(teller)) boringVault.setBeforeTransferHook(address(teller));
-            
-            boringVault.setMaxTotalSupply(10_000_000 * 1e6);
 
             // Set all RolesAuthorities.
             // if (boringVault.authority() != rolesAuthority) boringVault.setAuthority(rolesAuthority);

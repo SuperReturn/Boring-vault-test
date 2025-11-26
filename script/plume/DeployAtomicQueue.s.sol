@@ -8,7 +8,7 @@ import {Deployer} from "src/helper/Deployer.sol";
 import {AtomicQueue} from "src/atomic-queue/AtomicQueue.sol";
 import {AtomicSolverV4} from "src/atomic-queue/AtomicSolverV4.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {SepoliaAddresses} from "test/resources/SepoliaAddresses.sol";
+import {PlumeAddresses} from "test/resources/PlumeAddresses.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -17,7 +17,7 @@ import "forge-std/StdJson.sol";
  *  source .env && forge script script/DeployAtomicQueue.s.sol:DeployAtomicQueueScript --with-gas-price 70000000 --evm-version london --broadcast --etherscan-api-key $OPTIMISMSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
+contract DeployAtomicQueueScript is Script, ContractNames, PlumeAddresses {
     uint256 public privateKey;
 
     address public devOwner = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
@@ -40,7 +40,7 @@ contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
 
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
-        vm.createSelectFork("sepolia");
+        vm.createSelectFork("plume");
     }
 
     function run() external {
@@ -48,24 +48,23 @@ contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
         bytes memory constructorArgs;
         vm.startBroadcast(privateKey);
 
-        address deployedAddress = _getAddressIfDeployed(sUsdaiBoringOnChainQueuesRolesAuthorityName);
+        address deployedAddress = _getAddressIfDeployed(UsdaiBoringOnChainQueuesRolesAuthorityName);
         if (deployedAddress == address(0)) {
             creationCode = type(RolesAuthority).creationCode;
             constructorArgs = abi.encode(owner, Authority(address(0)));
             rolesAuthority =
-                RolesAuthority(deployer.deployContract(sUsdaiBoringOnChainQueuesRolesAuthorityName, creationCode, constructorArgs, 0));
+                RolesAuthority(deployer.deployContract(UsdaiBoringOnChainQueuesRolesAuthorityName, creationCode, constructorArgs, 0));
         } else {
-            rolesAuthority = RolesAuthority(deployer.getAddress(sUsdaiBoringOnChainQueuesRolesAuthorityName));
+            rolesAuthority = RolesAuthority(deployer.getAddress(UsdaiBoringOnChainQueuesRolesAuthorityName));
         }
-
         creationCode = type(AtomicSolverV4).creationCode;
         constructorArgs = abi.encode(owner, rolesAuthority);
-        atomicSolver = AtomicSolverV4(deployer.deployContract(sUsdaiVaultQueueSolverName, creationCode, constructorArgs, 0));
+        atomicSolver = AtomicSolverV4(deployer.deployContract(UsdaiVaultQueueSolverName, creationCode, constructorArgs, 0));
 
         creationCode = type(AtomicQueue).creationCode;
-        address accountant = _getAddressIfDeployed(sUsdaiVaultAccountantName);
+        address accountant = _getAddressIfDeployed(UsdaiVaultAccountantName);
         constructorArgs = abi.encode(owner, rolesAuthority, accountant, address(atomicSolver));
-        atomicQueue = AtomicQueue(deployer.deployContract(sUsdaiVaultQueueName, creationCode, constructorArgs, 0));
+        atomicQueue = AtomicQueue(deployer.deployContract(UsdaiVaultQueueName, creationCode, constructorArgs, 0));
 
         // set RolesAuthority
         rolesAuthority.setUserRole(canSolve, CAN_SOLVE_ROLE, true);
@@ -81,7 +80,7 @@ contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.addToWhitelist.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.removeFromWhitelist.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.updateWhitelistMaturityDivisor.selector, true);
-        // rolesAuthority.setRoleCapability(INSTANT_WITHDRAW_ROLE, address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
+        rolesAuthority.setRoleCapability(INSTANT_WITHDRAW_ROLE, address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
         rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.setSolver.selector, true);
         rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.cancelAtomicRequestByAdmin.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicSolver), AtomicSolverV4.finishSolve.selector, true);
@@ -89,20 +88,18 @@ contract DeployAtomicQueueScript is Script, ContractNames, SepoliaAddresses {
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicSolver), AtomicSolverV4.approveOfferForQueue.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.updateAtomicRequest.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.cancelAtomicRequest.selector, true);
-        rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
         rolesAuthority.setPublicCapability(address(atomicSolver), AtomicSolverV4.redeemSolve.selector, true);
 
         // extra setting
-        atomicQueue.setMaturityTime(3 minutes);
-        atomicQueue.setDiscount(0);
+        // atomicQueue.setMaturityTime(3 minutes);
 
         // extra role setting for other contracts
-        RolesAuthority vaultRolesAuthority = RolesAuthority(deployer.getAddress(sUsdaiVaultRolesAuthorityName));
+        RolesAuthority vaultRolesAuthority = RolesAuthority(deployer.getAddress(UsdaiVaultRolesAuthorityName));
         vaultRolesAuthority.setUserRole(address(atomicSolver), 12, true); // 12: solver role
         vaultRolesAuthority.setUserRole(address(atomicQueue), 12, true); // 12: solver role
-        vaultRolesAuthority.setUserRole(deployer.getAddress(sUsdaiVaultTellerName), 3, true); // 3: buy role
-        vaultRolesAuthority.setUserRole(deployer.getAddress(sUsdaiLayerZeroTellerName), 3, true); // 3: buy role
-        vaultRolesAuthority.setUserRole(deployer.getAddress(sUsdaiChainlinkCCIPTellerName), 3, true); // 3: buy role
+        vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiVaultTellerName), 3, true); // 3: buy role
+        // vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiLayerZeroTellerName), 3, true); // 3: buy role
+        // vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiChainlinkCCIPTellerName), 3, true); // 3: buy role
         vm.stopBroadcast();
     }
 
