@@ -830,7 +830,7 @@ contract ChainValues {
         values[katanabokuto]["USDC"] = 0xc2a4C310F2512A17Ac0047cf871aCAed3E62bB4B.toBytes32(); // vdusdc
     }
     function _addPlumeTestnetValues() private {
-        values[plume]["deployerAddress"] = 0x6A0FE0ab71583F23Ea62904cd2C98DD18E0F9096.toBytes32();
+        values[plume]["deployerAddress"] = 0xb654e5d7F1dbFCe3945551a72764e7b06DB25994.toBytes32();
         values[plume]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
         values[plume]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
         values[plume]["PUSD"] = 0x78adD880A697070c1e765Ac44D65323a0DcCE913.toBytes32();

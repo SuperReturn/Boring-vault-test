@@ -5,7 +5,7 @@ import {Deployer} from "src/helper/Deployer.sol";
 import {SSuperusdZapTeller} from "src/zaps/SSuperusdZapTeller.sol";
 import {SSuperusdSakeZapTeller} from "src/zaps/SSuperusdSakeZapTeller.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {PlumeAddresses} from "test/resources/PlumeAddresses.sol";
+import {SoneiumAddresses} from "test/resources/SoneiumAddresses.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -14,7 +14,7 @@ import "forge-std/StdJson.sol";
  *  source .env && forge script script/DeployZapTellers.s.sol:DeployZapTellers --with-gas-price 70000000 --evm-version london --broadcast --etherscan-api-key $OPTIMISMSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployZapTellers is Script, ContractNames, PlumeAddresses {
+contract DeployZapTellers is Script, ContractNames, SoneiumAddresses {
     uint256 public privateKey;
 
     address public devOwner = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
@@ -30,8 +30,8 @@ contract DeployZapTellers is Script, ContractNames, PlumeAddresses {
     address public ssuperusd;
     address public superusdTeller;
     address public ssuperusdTeller;
-    address public sakePool = address(0); // set these if sake is deployed on this network
-    address public assuperusd = address(0);
+    address public sakePool = address(0x3C3987A310ee13F7B8cBBe21D97D4436ba5E4B5f); // set these if sake is deployed on this network
+    address public assuperusd = address(0xEB2dc4d4B64D1c2e2270C5AB57DdBa4c428f5b15);
 
     // Contracts to deploy
     address public ssuperusdZapTeller;
@@ -39,7 +39,7 @@ contract DeployZapTellers is Script, ContractNames, PlumeAddresses {
 
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
-        vm.createSelectFork("plume");
+        vm.createSelectFork("soneium");
     }
 
     function run() external {

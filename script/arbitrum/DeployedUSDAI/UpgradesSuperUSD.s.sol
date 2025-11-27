@@ -7,7 +7,7 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {OPAddresses} from "test/resources/OPAddresses.sol";
+import {ArbitrumAddresses} from "test/resources/ArbitrumAddresses.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
@@ -19,14 +19,14 @@ import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthorit
  * @notice This script demonstrates how to upgrade the BoringVault contract on Minato
  * @dev Run with: forge script script/minato/Upgrade.s.sol --rpc-url $MINATO_RPC_URL
  */
-contract UpgradesSuperUSDScript is Script, OPAddresses, ContractNames, MerkleTreeHelper {
+contract UpgradesSuperUSDScript is Script, ArbitrumAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     BoringVault vault;
 
     function setUp() public {
-        vm.createSelectFork("optimism");
-        setSourceChainName("optimism");
+        vm.createSelectFork("arbitrum");
+        setSourceChainName("arbitrum");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         vault = BoringVault(payable(previoussSuperUSD));

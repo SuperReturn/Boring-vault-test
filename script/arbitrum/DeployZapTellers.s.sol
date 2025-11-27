@@ -5,7 +5,7 @@ import {Deployer} from "src/helper/Deployer.sol";
 import {SSuperusdZapTeller} from "src/zaps/SSuperusdZapTeller.sol";
 import {SSuperusdSakeZapTeller} from "src/zaps/SSuperusdSakeZapTeller.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {PlumeAddresses} from "test/resources/PlumeAddresses.sol";
+import {ArbitrumAddresses} from "test/resources/ArbitrumAddresses.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -14,7 +14,7 @@ import "forge-std/StdJson.sol";
  *  source .env && forge script script/DeployZapTellers.s.sol:DeployZapTellers --with-gas-price 70000000 --evm-version london --broadcast --etherscan-api-key $OPTIMISMSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployZapTellers is Script, ContractNames, PlumeAddresses {
+contract DeployZapTellers is Script, ContractNames, ArbitrumAddresses {
     uint256 public privateKey;
 
     address public devOwner = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
@@ -39,7 +39,7 @@ contract DeployZapTellers is Script, ContractNames, PlumeAddresses {
 
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
-        vm.createSelectFork("plume");
+        vm.createSelectFork("arbitrum");
     }
 
     function run() external {
