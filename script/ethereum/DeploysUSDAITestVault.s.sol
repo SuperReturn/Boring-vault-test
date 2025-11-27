@@ -65,7 +65,7 @@ contract DeployTestVaultScript is DeployArcticArchitecture, EthereumAddresses {
         accountantParameters.allowedExchangeRateChangeLower = 0.995e4;
         accountantParameters.allowedExchangeRateChangeUpper = 1.005e4;
         // Minimum time(in seconds) to pass between updated without triggering a pause.
-        accountantParameters.minimumUpateDelayInSeconds = 1 days / 4;
+        accountantParameters.minimumUpateDelayInSeconds = 10500;
 
         // Define Decoder and Sanitizer deployment details.
         bytes memory creationCode = type(BaseDecoderAndSanitizer).creationCode;
