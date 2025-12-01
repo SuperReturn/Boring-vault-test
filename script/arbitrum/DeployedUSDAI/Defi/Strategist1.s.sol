@@ -29,7 +29,7 @@ contract Strategist1 is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNam
         setSourceChainName("arbitrum");
         
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
-        vault = BoringVault(payable(deployer.getAddress(UsdaiVaultName)));
+        vault = BoringVault(payable(previoussuperUSD));
         manager = ManagerWithMerkleVerification(deployer.getAddress(UsdaiVaultManagerName));
     }
 
@@ -39,7 +39,7 @@ contract Strategist1 is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNam
         
         vm.startBroadcast(privateKey);
         
-        setAddress(true, arbitrum, "boringVault", deployer.getAddress(UsdaiVaultName));
+        setAddress(true, arbitrum, "boringVault", previoussuperUSD);
         setAddress(true, arbitrum, "managerAddress", deployer.getAddress(UsdaiVaultManagerName));
         setAddress(true, arbitrum, "accountantAddress", deployer.getAddress(UsdaiVaultAccountantName));
         setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName));
@@ -50,8 +50,8 @@ contract Strategist1 is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNam
         _addArbitrumMorphoLeafs(leafs, address(vault), morphoVaults);
 
         address[] memory tokens = new address[](2);
-        tokens[0] = ARB;
-        tokens[1] = MORPHO;
+        tokens[0] = MORPHO;
+        tokens[1] = ARB;
 
         setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMerklDecoderAndSanitizerName));
         _addMerklLeafs(leafs, merklDistributor, tokens);
@@ -65,44 +65,44 @@ contract Strategist1 is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNam
         _addTransferLeafs(leafs, ERC20(MORPHO), 0x62d9113BFf4414e7D3600FfB4d6255D29e5CFc42);
 
         setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiBaseDecoderAndSanitizerName));
-        _addApprovalLeafs(leafs, ERC20(getAddress(sourceChain, "USDC")), 0x789AE139dBC4A1fd79981F8A9734DD448CFD3b2c);
+        _addApprovalLeafs(leafs, ERC20(getAddress(sourceChain, "USDC")), 0x28d2e2759dCB5CFda1c868Fee714B194c25a8dCB);
         _addTransferLeafs(leafs, ERC20(getAddress(sourceChain, "USDC")), 0x62d9113BFf4414e7D3600FfB4d6255D29e5CFc42);
 
 
 // Morpho operation
-        // setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName));
-        // bytes32[][] memory manageTree = _generateMerkleTree(leafs);
+        setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName));
+        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
-        // // 3. Generate proofs for the actions you want to execute. Check USDAILeafs.json for the leafs operation order
-        // uint256 opsAmt = 2;
-        // ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
-        // manageLeafs[0] = leafs[30];
-        // manageLeafs[1] = leafs[31];
+        // 3. Generate proofs for the actions you want to execute. Check USDAILeafs.json for the leafs operation order
+        uint256 opsAmt = 2;
+        ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
+        manageLeafs[0] = leafs[36];
+        manageLeafs[1] = leafs[37];
 
-        // bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+        bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
 
-        // // 4. Prepare the action data
-        // address[] memory targets = new address[](opsAmt);
-        // targets[0] = getAddress(sourceChain, "USDC");
-        // targets[1] = morphoVaults[10];
+        // 4. Prepare the action data
+        address[] memory targets = new address[](opsAmt);
+        targets[0] = getAddress(sourceChain, "USDC");
+        targets[1] = morphoVaults[12];
 
-        // bytes[] memory targetData = new bytes[](opsAmt);
+        bytes[] memory targetData = new bytes[](opsAmt);
 
-        // targetData[0] = abi.encodeWithSignature(
-        //     "approve(address,uint256)",
-        //     morphoVaults[10],
-        //     type(uint256).max
-        // );
+        targetData[0] = abi.encodeWithSignature(
+            "approve(address,uint256)",
+            morphoVaults[12],
+            type(uint256).max
+        );
 
-        // targetData[1] = abi.encodeWithSignature(
-        //     "deposit(uint256,address)",
-        //     1 * 1e3,
-        //     address(vault)
-        // );
+        targetData[1] = abi.encodeWithSignature(
+            "deposit(uint256,address)",
+            1 * 1e3,
+            address(vault)
+        );
 
-        // address[] memory decodersAndSanitizers = new address[](opsAmt);  
-        // decodersAndSanitizers[0] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
-        // decodersAndSanitizers[1] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
+        address[] memory decodersAndSanitizers = new address[](opsAmt);  
+        decodersAndSanitizers[0] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
+        decodersAndSanitizers[1] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
 
 
 // Merkl operation
@@ -268,30 +268,30 @@ contract Strategist1 is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNam
         // decodersAndSanitizers[1] = deployer.getAddress(UsdaiBaseDecoderAndSanitizerName);
 
 // transfer USDC
-        setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiBaseDecoderAndSanitizerName));
+        // setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiBaseDecoderAndSanitizerName));
 
-        // 2. Generate the merkle tree and get the root
-        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
+        // // 2. Generate the merkle tree and get the root
+        // bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
-        // 3. Generate proofs for the actions you want to execute
-        uint256 opsAmt = 2;
-        ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
-        manageLeafs[0] = leafs[3 * 12 + 2 + 2 + 1];
-        manageLeafs[1] = leafs[3 * 12 + 2 + 2 + 2];
-        // bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+        // // 3. Generate proofs for the actions you want to execute
+        // uint256 opsAmt = 2;
+        // ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
+        // manageLeafs[0] = leafs[3 * 12 + 2 + 2 + 1];
+        // manageLeafs[1] = leafs[3 * 12 + 2 + 2 + 2];
+        // // bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
 
-        // 4. Prepare the action data - both operations target USDC token
-        address[] memory targets = new address[](opsAmt);
-        targets[0] = getAddress(sourceChain, "USDC"); // approve
-        targets[1] = getAddress(sourceChain, "USDC"); // transfer
+        // // 4. Prepare the action data - both operations target USDC token
+        // address[] memory targets = new address[](opsAmt);
+        // targets[0] = getAddress(sourceChain, "USDC"); // approve
+        // targets[1] = getAddress(sourceChain, "USDC"); // transfer
 
-        bytes[] memory targetData = new bytes[](opsAmt);
-        targetData[0] = abi.encodeWithSignature("approve(address,uint256)", 0x789AE139dBC4A1fd79981F8A9734DD448CFD3b2c, type(uint256).max);
-        targetData[1] = abi.encodeWithSignature("transfer(address,uint256)", 0x62d9113BFf4414e7D3600FfB4d6255D29e5CFc42, 1e6);
+        // bytes[] memory targetData = new bytes[](opsAmt);
+        // targetData[0] = abi.encodeWithSignature("approve(address,uint256)", 0x28d2e2759dCB5CFda1c868Fee714B194c25a8dCB, type(uint256).max);
+        // targetData[1] = abi.encodeWithSignature("transfer(address,uint256)", 0x62d9113BFf4414e7D3600FfB4d6255D29e5CFc42, 1e6);
 
-        address[] memory decodersAndSanitizers = new address[](opsAmt);  
-        decodersAndSanitizers[0] = deployer.getAddress(UsdaiBaseDecoderAndSanitizerName);
-        decodersAndSanitizers[1] = deployer.getAddress(UsdaiBaseDecoderAndSanitizerName);
+        // address[] memory decodersAndSanitizers = new address[](opsAmt);  
+        // decodersAndSanitizers[0] = deployer.getAddress(UsdaiBaseDecoderAndSanitizerName);
+        // decodersAndSanitizers[1] = deployer.getAddress(UsdaiBaseDecoderAndSanitizerName);
 
 
 
@@ -303,7 +303,7 @@ contract Strategist1 is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNam
 
         _generateLeafs(filePath, leafs, merkleRoot, manageTree);
 
-        manager.setManageRoot(0x789AE139dBC4A1fd79981F8A9734DD448CFD3b2c, merkleRoot);
+        manager.setManageRoot(0x28d2e2759dCB5CFda1c868Fee714B194c25a8dCB, merkleRoot);
 
         vm.stopBroadcast();
         // vm.startBroadcast(vm.envUint("ARBITRUM_STRATEGIST"));

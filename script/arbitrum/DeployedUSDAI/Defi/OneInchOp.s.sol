@@ -34,7 +34,7 @@ contract OneInchOp is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNames
         setSourceChainName("arbitrum");
         
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
-        vault = BoringVault(payable(deployer.getAddress(UsdaiVaultName)));
+        vault = BoringVault(payable(previoussuperUSD));
         manager = ManagerWithMerkleVerification(deployer.getAddress(UsdaiVaultManagerName));
     }
 
@@ -44,7 +44,7 @@ contract OneInchOp is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNames
         
         vm.startBroadcast(privateKey);
         
-        setAddress(true, arbitrum, "boringVault", deployer.getAddress(UsdaiVaultName));
+        setAddress(true, arbitrum, "boringVault", previoussuperUSD);
         setAddress(true, arbitrum, "managerAddress", deployer.getAddress(UsdaiVaultManagerName));
         setAddress(true, arbitrum, "accountantAddress", deployer.getAddress(UsdaiVaultAccountantName));
         setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiOneInchDecoderAndSanitizerName));
