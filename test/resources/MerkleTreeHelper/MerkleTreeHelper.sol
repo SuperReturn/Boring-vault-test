@@ -115,6 +115,51 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
         }
     }
 
+    function _addLeafsFor1InchArbitrum(ManageLeaf[] memory leafs, address srcToken, address dstToken) internal {
+        address executor = getAddress(sourceChain, "oneInchExecutor");
+
+        if (!tokenToSpenderToApprovalInTree[srcToken][executor]) {
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                srcToken,
+                false,
+                "approve(address,uint256)",
+                new address[](1),
+                string.concat("Approve 1Inch router to spend ", ERC20(srcToken).symbol()),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "AggregationRouterV6");
+            tokenToSpenderToApprovalInTree[srcToken][executor] = true;
+        }
+
+        // swap
+        unchecked {
+            leafIndex++;
+        }
+        leafs[leafIndex] = ManageLeaf(
+            getAddress(sourceChain, "AggregationRouterV6"),
+            false,
+            "swap(address,(address,address,address,address,uint256,uint256,uint256),bytes)",
+            new address[](5),
+            string.concat(
+                "Swap ",
+                ERC20(srcToken).symbol(),
+                " for ",
+                ERC20(dstToken).symbol(),
+                " using 1inch router"
+            ),
+            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+        );
+        leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "oneInchExecutor");
+        leafs[leafIndex].argumentAddresses[1] = srcToken;
+        leafs[leafIndex].argumentAddresses[2] = dstToken;
+        leafs[leafIndex].argumentAddresses[3] = getAddress(sourceChain, "oneInchExecutor");
+        leafs[leafIndex].argumentAddresses[4] = getAddress(sourceChain, "boringVault");
+        oneInchSellTokenToBuyTokenToInTree[srcToken][dstToken] = true;
+    }
+
     function _addLeafsFor1InchUniswapV3Swapping(ManageLeaf[] memory leafs, address pool) internal {
         UniswapV3Pool uniswapV3Pool = UniswapV3Pool(pool);
         address token0 = uniswapV3Pool.token0();
@@ -1564,6 +1609,39 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
         }
     }
 
+    // ========================================= Transfer =========================================
+
+    function _addTransferLeafs(ManageLeaf[] memory leafs, ERC20 token, address to) internal {
+        unchecked {
+            leafIndex++;
+        }
+        leafs[leafIndex] = ManageLeaf(
+            address(token),
+            false,
+            "transfer(address,uint256)",
+            new address[](1),
+            string.concat("Transfer ", token.symbol(), " to ", vm.toString(to)),
+            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+        );
+        leafs[leafIndex].argumentAddresses[0] = to;
+    }
+
+    function _addApprovalLeafs(ManageLeaf[] memory leafs, ERC20 token, address spender) internal {
+        unchecked {
+            leafIndex++;
+        }
+        leafs[leafIndex] = ManageLeaf(
+            address(token),
+            false,
+            "approve(address,uint256)",
+            new address[](1),
+            string.concat("Approve ", vm.toString(spender), " to spend ", token.name()),
+            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+        );
+        leafs[leafIndex].argumentAddresses[0] = spender;
+        tokenToSpenderToApprovalInTree[address(token)][spender] = true;
+    }
+
     // ========================================= Uniswap V3 =========================================
 
     function _addUniswapV3Leafs(ManageLeaf[] memory leafs, address[] memory token0, address[] memory token1) internal {
@@ -2366,6 +2444,159 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
         }
     }
 
+    // ========================================= Morpho =========================================
+    function _addMorphoLeafs(ManageLeaf[] memory leafs, address receiver, address[] memory tokens) internal {
+        address _pUSD = getAddress(sourceChain, "PUSD");
+
+        for (uint256 i; i < tokens.length; ++i) {
+            // Add USDC approval
+            if (!tokenToSpenderToApprovalInTree[_pUSD][tokens[i]]) {
+                unchecked {
+                    leafIndex++;
+                }
+                leafs[leafIndex] = ManageLeaf(
+                    _pUSD,
+                    false,
+                    "approve(address,uint256)",
+                    new address[](1),
+                    string(abi.encodePacked("Approve ",Strings.toHexString(uint256(uint160(tokens[i])), 20), " to Morpho")),
+                    getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+                );
+                leafs[leafIndex].argumentAddresses[0] = tokens[i];
+                tokenToSpenderToApprovalInTree[_pUSD][tokens[i]] = true;
+            }
+
+            // Deposit
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                tokens[i],
+                false,
+                "deposit(uint256,address)",
+                new address[](1),
+                string(abi.encodePacked("Deposit into ",Strings.toHexString(uint256(uint160(tokens[i])), 20), " Morpho vault")),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = receiver;
+
+            // withdraw
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                tokens[i],
+                false,
+                "withdraw(uint256,address,address)",
+                new address[](1),
+                string(abi.encodePacked("Withdraw from ",Strings.toHexString(uint256(uint160(tokens[i])), 20), " Morpho vault")),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = receiver;
+        }
+    }
+
+    function _addBaseMorphoLeafs(ManageLeaf[] memory leafs, address receiver) internal {
+        // Approvals
+        address token = 0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A;
+        address usdc = getAddress(sourceChain, "USDC");
+
+        // Add USDC approval
+        if (!tokenToSpenderToApprovalInTree[usdc][token]) {
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                usdc,
+                false,
+                "approve(address,uint256)",
+                new address[](1),
+                "Approve USDC to re7pUSD",
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = token;
+            tokenToSpenderToApprovalInTree[usdc][token] = true;
+        }
+
+        // Deposit
+        unchecked {
+            leafIndex++;
+        }
+        leafs[leafIndex] = ManageLeaf(
+            token,
+            false,
+            "deposit(uint256,address)",
+            new address[](1),
+            "Deposit to Morpho",
+            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+        );
+        leafs[leafIndex].argumentAddresses[0] = receiver;
+
+        // withdraw
+        unchecked {
+            leafIndex++;
+        }
+        leafs[leafIndex] = ManageLeaf(
+            token,
+            false,
+            "withdraw(uint256,address,address)",
+            new address[](1),
+            "Withdraw from Morpho",
+            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+        );
+        leafs[leafIndex].argumentAddresses[0] = receiver;
+    }
+
+    function _addArbitrumMorphoLeafs(ManageLeaf[] memory leafs, address receiver, address[] memory tokens) internal {
+        address usdc = getAddress(sourceChain, "USDC");
+
+        for (uint256 i; i < tokens.length; ++i) {
+            if (!tokenToSpenderToApprovalInTree[tokens[i]][usdc]) {
+                unchecked {
+                    leafIndex++;
+                }
+            }
+            leafs[leafIndex] = ManageLeaf(
+                usdc,
+                false,
+                "approve(address,uint256)",
+                new address[](1),
+                string(abi.encodePacked("Approve ",Strings.toHexString(uint256(uint160(tokens[i])), 20), " to Morpho")),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = tokens[i];
+            tokenToSpenderToApprovalInTree[tokens[i]][usdc] = true;
+
+            // deposit
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                tokens[i],
+                false,
+                "deposit(uint256,address)",
+                new address[](1),
+                string(abi.encodePacked("Deposit into ",Strings.toHexString(uint256(uint160(tokens[i])), 20), " Morpho vault")),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = receiver;
+            
+            // withdraw
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                tokens[i],
+                false,
+                "withdraw(uint256,address,address)",
+                new address[](1),
+                string(abi.encodePacked("Withdraw from ",Strings.toHexString(uint256(uint160(tokens[i])), 20), " Morpho vault")),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = receiver;
+        }
+    }
+
     // ========================================= Aura =========================================
 
     function _addAuraLeafs(ManageLeaf[] memory leafs, address auraDeposit) internal {
@@ -2431,200 +2662,6 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
             getAddress(sourceChain, "rawDataDecoderAndSanitizer")
         );
         leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "boringVault");
-    }
-
-    // ========================================= MorphoBlue =========================================
-
-    function _addMorphoBlueSupplyLeafs(ManageLeaf[] memory leafs, bytes32 marketId) internal {
-        IMB.MarketParams memory marketParams = IMB(getAddress(sourceChain, "morphoBlue")).idToMarketParams(marketId);
-        ERC20 loanToken = ERC20(marketParams.loanToken);
-        ERC20 collateralToken = ERC20(marketParams.collateralToken);
-        uint256 leftSideLLTV = marketParams.lltv / 1e16;
-        uint256 rightSideLLTV = (marketParams.lltv / 1e14) % 100;
-        string memory morphoBlueMarketName = string.concat(
-            "MorphoBlue ",
-            collateralToken.symbol(),
-            "/",
-            loanToken.symbol(),
-            " ",
-            vm.toString(leftSideLLTV),
-            ".",
-            vm.toString(rightSideLLTV),
-            " LLTV market"
-        );
-        // Add approval leaf if not already added
-        if (!tokenToSpenderToApprovalInTree[marketParams.loanToken][getAddress(sourceChain, "morphoBlue")]) {
-            unchecked {
-                leafIndex++;
-            }
-            leafs[leafIndex] = ManageLeaf(
-                marketParams.loanToken,
-                false,
-                "approve(address,uint256)",
-                new address[](1),
-                string.concat("Approve MorhoBlue to spend ", loanToken.symbol()),
-                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
-            );
-            leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "morphoBlue");
-            tokenToSpenderToApprovalInTree[marketParams.loanToken][getAddress(sourceChain, "morphoBlue")] = true;
-        }
-        unchecked {
-            leafIndex++;
-        }
-        leafs[leafIndex] = ManageLeaf(
-            getAddress(sourceChain, "morphoBlue"),
-            false,
-            "supply((address,address,address,address,uint256),uint256,uint256,address,bytes)",
-            new address[](5),
-            string.concat("Supply ", loanToken.symbol(), " to ", morphoBlueMarketName),
-            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
-        );
-        leafs[leafIndex].argumentAddresses[0] = marketParams.loanToken;
-        leafs[leafIndex].argumentAddresses[1] = marketParams.collateralToken;
-        leafs[leafIndex].argumentAddresses[2] = marketParams.oracle;
-        leafs[leafIndex].argumentAddresses[3] = marketParams.irm;
-        leafs[leafIndex].argumentAddresses[4] = getAddress(sourceChain, "boringVault");
-        unchecked {
-            leafIndex++;
-        }
-        leafs[leafIndex] = ManageLeaf(
-            getAddress(sourceChain, "morphoBlue"),
-            false,
-            "withdraw((address,address,address,address,uint256),uint256,uint256,address,address)",
-            new address[](6),
-            string.concat("Withdraw ", loanToken.symbol(), " from ", morphoBlueMarketName),
-            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
-        );
-        leafs[leafIndex].argumentAddresses[0] = marketParams.loanToken;
-        leafs[leafIndex].argumentAddresses[1] = marketParams.collateralToken;
-        leafs[leafIndex].argumentAddresses[2] = marketParams.oracle;
-        leafs[leafIndex].argumentAddresses[3] = marketParams.irm;
-        leafs[leafIndex].argumentAddresses[4] = getAddress(sourceChain, "boringVault");
-        leafs[leafIndex].argumentAddresses[5] = getAddress(sourceChain, "boringVault");
-    }
-
-    function _addMorphoBlueCollateralLeafs(ManageLeaf[] memory leafs, bytes32 marketId) internal {
-        IMB.MarketParams memory marketParams = IMB(getAddress(sourceChain, "morphoBlue")).idToMarketParams(marketId);
-        ERC20 loanToken = ERC20(marketParams.loanToken);
-        ERC20 collateralToken = ERC20(marketParams.collateralToken);
-        uint256 leftSideLLTV = marketParams.lltv / 1e16;
-        uint256 rightSideLLTV = (marketParams.lltv / 1e14) % 100;
-        string memory morphoBlueMarketName = string.concat(
-            "MorphoBlue ",
-            collateralToken.symbol(),
-            "/",
-            loanToken.symbol(),
-            " ",
-            vm.toString(leftSideLLTV),
-            ".",
-            vm.toString(rightSideLLTV),
-            " LLTV market"
-        );
-        // Approve MorphoBlue to spend collateral.
-        if (!tokenToSpenderToApprovalInTree[marketParams.collateralToken][getAddress(sourceChain, "morphoBlue")]) {
-            unchecked {
-                leafIndex++;
-            }
-            leafs[leafIndex] = ManageLeaf(
-                marketParams.collateralToken,
-                false,
-                "approve(address,uint256)",
-                new address[](1),
-                string.concat("Approve MorhoBlue to spend ", collateralToken.symbol()),
-                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
-            );
-            leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "morphoBlue");
-            tokenToSpenderToApprovalInTree[marketParams.collateralToken][getAddress(sourceChain, "morphoBlue")] = true;
-        }
-        // Approve morpho blue to spend loan token.
-        if (!tokenToSpenderToApprovalInTree[marketParams.collateralToken][getAddress(sourceChain, "morphoBlue")]) {
-            unchecked {
-                leafIndex++;
-            }
-            leafs[leafIndex] = ManageLeaf(
-                marketParams.loanToken,
-                false,
-                "approve(address,uint256)",
-                new address[](1),
-                string.concat("Approve MorhoBlue to spend ", loanToken.symbol()),
-                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
-            );
-            leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "morphoBlue");
-            tokenToSpenderToApprovalInTree[marketParams.loanToken][getAddress(sourceChain, "morphoBlue")] = true;
-        }
-        // Supply collateral to MorphoBlue.
-        unchecked {
-            leafIndex++;
-        }
-        leafs[leafIndex] = ManageLeaf(
-            getAddress(sourceChain, "morphoBlue"),
-            false,
-            "supplyCollateral((address,address,address,address,uint256),uint256,address,bytes)",
-            new address[](5),
-            string.concat("Supply ", collateralToken.symbol(), " to ", morphoBlueMarketName),
-            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
-        );
-        leafs[leafIndex].argumentAddresses[0] = marketParams.loanToken;
-        leafs[leafIndex].argumentAddresses[1] = marketParams.collateralToken;
-        leafs[leafIndex].argumentAddresses[2] = marketParams.oracle;
-        leafs[leafIndex].argumentAddresses[3] = marketParams.irm;
-        leafs[leafIndex].argumentAddresses[4] = getAddress(sourceChain, "boringVault");
-
-        // Borrow loan token from MorphoBlue.
-        unchecked {
-            leafIndex++;
-        }
-        leafs[leafIndex] = ManageLeaf(
-            getAddress(sourceChain, "morphoBlue"),
-            false,
-            "borrow((address,address,address,address,uint256),uint256,uint256,address,address)",
-            new address[](6),
-            string.concat("Borrow ", loanToken.symbol(), " from ", morphoBlueMarketName),
-            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
-        );
-        leafs[leafIndex].argumentAddresses[0] = marketParams.loanToken;
-        leafs[leafIndex].argumentAddresses[1] = marketParams.collateralToken;
-        leafs[leafIndex].argumentAddresses[2] = marketParams.oracle;
-        leafs[leafIndex].argumentAddresses[3] = marketParams.irm;
-        leafs[leafIndex].argumentAddresses[4] = getAddress(sourceChain, "boringVault");
-        leafs[leafIndex].argumentAddresses[5] = getAddress(sourceChain, "boringVault");
-
-        // Repay loan token to MorphoBlue.
-        unchecked {
-            leafIndex++;
-        }
-        leafs[leafIndex] = ManageLeaf(
-            getAddress(sourceChain, "morphoBlue"),
-            false,
-            "repay((address,address,address,address,uint256),uint256,uint256,address,bytes)",
-            new address[](5),
-            string.concat("Repay ", loanToken.symbol(), " to ", morphoBlueMarketName),
-            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
-        );
-        leafs[leafIndex].argumentAddresses[0] = marketParams.loanToken;
-        leafs[leafIndex].argumentAddresses[1] = marketParams.collateralToken;
-        leafs[leafIndex].argumentAddresses[2] = marketParams.oracle;
-        leafs[leafIndex].argumentAddresses[3] = marketParams.irm;
-        leafs[leafIndex].argumentAddresses[4] = getAddress(sourceChain, "boringVault");
-
-        // Withdraw collateral from MorphoBlue.
-        unchecked {
-            leafIndex++;
-        }
-        leafs[leafIndex] = ManageLeaf(
-            getAddress(sourceChain, "morphoBlue"),
-            false,
-            "withdrawCollateral((address,address,address,address,uint256),uint256,address,address)",
-            new address[](6),
-            string.concat("Withdraw ", collateralToken.symbol(), " from ", morphoBlueMarketName),
-            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
-        );
-        leafs[leafIndex].argumentAddresses[0] = marketParams.loanToken;
-        leafs[leafIndex].argumentAddresses[1] = marketParams.collateralToken;
-        leafs[leafIndex].argumentAddresses[2] = marketParams.oracle;
-        leafs[leafIndex].argumentAddresses[3] = marketParams.irm;
-        leafs[leafIndex].argumentAddresses[4] = getAddress(sourceChain, "boringVault");
-        leafs[leafIndex].argumentAddresses[5] = getAddress(sourceChain, "boringVault");
     }
 
     // ========================================= ERC4626 =========================================
@@ -3522,8 +3559,7 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
     function _addMerklLeafs(
         ManageLeaf[] memory leafs,
         address merklDistributor,
-        address operator,
-        ERC20[] memory tokensToClaim
+        address[] memory tokensToClaim
     ) internal {
         unchecked {
             leafIndex++;
@@ -3531,27 +3567,14 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
         leafs[leafIndex] = ManageLeaf(
             merklDistributor,
             false,
-            "toggleOperator(address,address)",
-            new address[](2),
-            string.concat("Allow ", vm.toString(operator), " to claim merkl rewards"),
+            "claim(address[],address[],uint256[],bytes32[][])",
+            new address[](tokensToClaim.length * 2),
+            string.concat("Claim merkl rewards"),
             getAddress(sourceChain, "rawDataDecoderAndSanitizer")
         );
-        leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "boringVault");
-        leafs[leafIndex].argumentAddresses[1] = operator;
-        for (uint256 i; i < tokensToClaim.length; ++i) {
-            unchecked {
-                leafIndex++;
-            }
-            leafs[leafIndex] = ManageLeaf(
-                merklDistributor,
-                false,
-                "claim(address[],address[],uint256[],bytes32[][])",
-                new address[](2),
-                string.concat("Claim merkl", tokensToClaim[i].symbol(), " rewards"),
-                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
-            );
-            leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "boringVault");
-            leafs[leafIndex].argumentAddresses[1] = address(tokensToClaim[i]);
+        for (uint256 i; i < tokensToClaim.length; i++) {
+            leafs[leafIndex].argumentAddresses[i*2] = getAddress(sourceChain, "boringVault");
+            leafs[leafIndex].argumentAddresses[i*2+1] = tokensToClaim[i];
         }
     }
 
