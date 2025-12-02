@@ -96,6 +96,18 @@ contract DecoderCustomTypes {
         uint256 lltv;
     }
 
+    // ========================================= Rooster =========================================
+    struct RoosterExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        address deployer;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 limitSqrtPrice;
+    }
+
     // ========================================= 1INCH =========================================
 
     struct SwapDescription {

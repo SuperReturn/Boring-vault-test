@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 import "forge-std/Script.sol";
-import {OPAddresses} from "test/resources/OPAddresses.sol";
+import {PlumeAddresses} from "test/resources/PlumeAddresses.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {MerkleProofLib} from "@solmate/utils/MerkleProofLib.sol";
 import {BoringVault} from "src/base/BoringVault.sol";
@@ -12,7 +12,6 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {Deployer} from "src/helper/Deployer.sol";
-import {DecoderCustomTypes} from "src/interfaces/DecoderCustomTypes.sol";
 import {console} from "forge-std/console.sol";
 
 /*
@@ -21,7 +20,7 @@ notice possible issues:
 example tx: https://sepolia.etherscan.io/tx/0x563c1e3daaeb60ac16d203040f2aeb9c15b25dc96f8c2be071b36af9625e6a87
 */
 
-contract UniSwapV3Op is Script, OPAddresses, MerkleTreeHelper, ContractNames {
+contract MorphoOp is Script, PlumeAddresses, MerkleTreeHelper, ContractNames {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
     using Address for address;
@@ -29,10 +28,12 @@ contract UniSwapV3Op is Script, OPAddresses, MerkleTreeHelper, ContractNames {
     Deployer public deployer;
     BoringVault vault;
     ManagerWithMerkleVerification manager;
+    // address re7pUSD = 0xc0Df5784f28046D11813356919B869dDA5815B16;
+    // uint256 PUSDSupplyAmount =1e3;
 
     function setUp() external {
-        vm.createSelectFork("optimism");
-        setSourceChainName("optimism");
+        vm.createSelectFork("plume");
+        setSourceChainName("plume");
         
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         vault = BoringVault(payable(previoussuperUSD));
@@ -41,73 +42,75 @@ contract UniSwapV3Op is Script, OPAddresses, MerkleTreeHelper, ContractNames {
 
     function run() public {
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
+        // address auth = vm.addr(privateKey);
+        // uint256 strategist = vm.envUint("PLUME_STRATEGIST_MORPHO");
         
         vm.startBroadcast(privateKey);
         
-        setAddress(true, optimism, "boringVault", address(vault));
-        setAddress(true, optimism, "managerAddress", deployer.getAddress(UsdaiVaultManagerName));
-        setAddress(true, optimism, "accountantAddress", deployer.getAddress(UsdaiVaultAccountantName));
-        setAddress(true, optimism, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiUniswapV3DecoderAndSanitizerName));
-
+        setAddress(true, plume, "boringVault", previoussuperUSD);
+        setAddress(true, plume, "managerAddress", deployer.getAddress(UsdaiVaultManagerName));
+        setAddress(true, plume, "accountantAddress", deployer.getAddress(UsdaiVaultAccountantName));
+        setAddress(true, plume, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName));
 
         // 1. Create merkle tree leaves for allowed actions
         ManageLeaf[] memory leafs = new ManageLeaf[](128);
 
-        address[] memory token0 = new address[](1);
-        token0[0] = getAddress(sourceChain, "USDC");
-        address[] memory token1 = new address[](1);
-        token1[0] = getAddress(sourceChain, "OP");
-
-        _addUniswapV3Leafs(leafs, token0, token1);
+        _addMorphoLeafs(leafs, address(vault), morphoVaults);
 
         // 2. Generate the merkle tree and get the root
         bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
         // 3. Generate proofs for the actions you want to execute. Check USDAILeafs.json for the leafs operation order
+        // Approve PUSD
+        // Deposit PUSD
         uint256 opsAmt = 2;
         ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
-        manageLeafs[0] = leafs[3];
-        manageLeafs[1] = leafs[7];
+        manageLeafs[0] = leafs[0];
+        manageLeafs[1] = leafs[1];
 
         bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
 
         // 4. Prepare the action data
         address[] memory targets = new address[](opsAmt);
-        targets[0] = getAddress(sourceChain, "OP");
-        targets[1] = getAddress(sourceChain, "uniV3Router");
+        targets[0] = getAddress(sourceChain, "PUSD");
+        targets[1] = 0xc0Df5784f28046D11813356919B869dDA5815B16;
 
         bytes[] memory targetData = new bytes[](opsAmt);
 
         targetData[0] = abi.encodeWithSignature(
-            "approve(address,uint256)", getAddress(sourceChain, "uniV3Router"), type(uint256).max
+            "approve(address,uint256)",
+            0xc0Df5784f28046D11813356919B869dDA5815B16,
+            type(uint256).max
         );
 
-        DecoderCustomTypes.ExactInputParams memory exactInputParams = DecoderCustomTypes.ExactInputParams(
-            abi.encodePacked(getAddress(sourceChain, "OP"), uint24(3000), getAddress(sourceChain, "USDC")),
-            address(vault),
-            block.timestamp + 1000000,
-            1 * 1e18,
-            1 * 300000 // should be updated
+        targetData[1] = abi.encodeWithSignature(
+            "deposit(uint256,address)",
+            501000e6,
+            address(vault)
         );
-        targetData[1] = abi.encodeWithSignature("exactInput((bytes,address,uint256,uint256,uint256))", exactInputParams);
+
+        // targetData[1] = abi.encodeWithSignature(
+        //     "withdraw(uint256,address,address)",
+        //     1e6, // assets
+        //     address(vault), // receiver
+        //     address(vault)  // owner
+        // );
 
         address[] memory decodersAndSanitizers = new address[](opsAmt);  
-        decodersAndSanitizers[0] = deployer.getAddress(UsdaiUniswapV3DecoderAndSanitizerName);
-        decodersAndSanitizers[1] = deployer.getAddress(UsdaiUniswapV3DecoderAndSanitizerName);
+        decodersAndSanitizers[0] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
+        decodersAndSanitizers[1] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
 
         uint256[] memory values = new uint256[](opsAmt);
 
         // extra
-        string memory filePath = "./leafs/UniSwapV3Leafs.json";
         bytes32 merkleRoot = manageTree[manageTree.length - 1][0];
 
-        _generateLeafs(filePath, leafs, merkleRoot, manageTree);
+        _generateLeafs("./leafs/MorphoLeafs.json", leafs, merkleRoot, manageTree);
 
-        // try to less the var number to prevent "Stack too deep" error
-        manager.setManageRoot(vm.addr(vm.envUint("OP_STRATEGIST")), merkleRoot);
+        manager.setManageRoot(vm.addr(vm.envUint("PLUME_STRATEGIST_MORPHO")), merkleRoot);
 
         vm.stopBroadcast();
-        vm.startBroadcast(vm.envUint("OP_STRATEGIST"));
+        vm.startBroadcast(vm.envUint("PLUME_STRATEGIST_MORPHO"));
 
         // 5. Execute the actions through the manager
         manager.manageVaultWithMerkleVerification(

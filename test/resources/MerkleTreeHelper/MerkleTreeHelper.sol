@@ -2444,6 +2444,49 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
         }
     }
 
+    // ========================================= Rooster =========================================
+
+    function _addRoosterLeafs(ManageLeaf[] memory leafs) internal {
+        // Approvals
+        address routerAddress = getAddress(sourceChain, "roosterRouter");
+        address WPLUME = getAddress(sourceChain, "WPLUME");
+
+        // Add approval
+        if (!tokenToSpenderToApprovalInTree[WPLUME][routerAddress]) {
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                WPLUME,
+                false,
+                "approve(address,uint256)",
+                new address[](1),
+                "Approve PUSD to Rooster",
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = routerAddress;
+            tokenToSpenderToApprovalInTree[WPLUME][routerAddress] = true;
+        }
+
+        // ExactInputSingle
+        unchecked {
+            leafIndex++;
+        }
+        leafs[leafIndex] = ManageLeaf(
+            routerAddress,
+            false,
+            "exactInputSingle((address,address,address,address,uint256,uint256,uint256,uint160))",
+            new address[](3),
+            string.concat(
+                "Swap WPLUME for PUSD using Rooster exactInputSingle"
+            ),
+            getAddress(sourceChain, "rawDataDecoderAndSanitizer") 
+        );
+        leafs[leafIndex].argumentAddresses[0] = WPLUME;
+        leafs[leafIndex].argumentAddresses[1] = getAddress(sourceChain, "PUSD");
+        leafs[leafIndex].argumentAddresses[2] = getAddress(sourceChain, "boringVault"); // recipient
+    }
+
     // ========================================= Morpho =========================================
     function _addMorphoLeafs(ManageLeaf[] memory leafs, address receiver, address[] memory tokens) internal {
         address _pUSD = getAddress(sourceChain, "PUSD");
