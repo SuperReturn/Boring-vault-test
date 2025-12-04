@@ -116,6 +116,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
      */
     event AtomicRequestUpdated(
         bytes32 indexed requestId,
+        address initiator,
         address indexed user,
         address offerToken,
         address indexed wantToken,
@@ -458,7 +459,6 @@ contract AtomicQueue is ReentrancyGuard, Auth {
      */
     function updateAtomicRequest(AtomicRequest memory userRequest) external nonReentrant returns (bytes32) {
         if (userRequest.offer != address(accountant.vault())) revert AtomicQueue__RequestAccountantOfferMismatch(address(userRequest.offer), address(accountant.vault()));
-        if (userRequest.user != msg.sender) revert AtomicQueue__BadUser();
 
         // try to gate rate from the accountant, should revert if the want token is not supported
         accountant.getRateInQuoteSafe(ERC20(userRequest.want));
@@ -470,7 +470,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         if (userRequest.offerAmount == 0) revert AtomicQueue__OfferAmountIsZero();
         if (userRequest.offer == address(0)) revert AtomicQueue__OfferAddressIsZero();
         if (userRequest.want == address(0)) revert AtomicQueue__WantAddressIsZero();
-        if (userRequest.offerAmount > ERC20(userRequest.offer).balanceOf(userRequest.user)) revert AtomicQueue__InsufficientBalance();
+        if (userRequest.offerAmount > ERC20(userRequest.offer).balanceOf(msg.sender)) revert AtomicQueue__InsufficientBalance();
         if (block.timestamp > userRequest.deadline) revert AtomicQueue__DeadlineExpired();
 
         bytes32 requestId = keccak256(abi.encode(userRequest));
@@ -480,11 +480,12 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         withdrawInProgressAmount[userRequest.offer][userRequest.want] += userRequest.offerAmount;
 
         // Transfer offer shares from user to solver contract
-        ERC20(userRequest.offer).safeTransferFrom(userRequest.user, address(solver), userRequest.offerAmount);
+        ERC20(userRequest.offer).safeTransferFrom(msg.sender, address(solver), userRequest.offerAmount);
 
         emit AtomicRequestUpdated(
             requestId,
             msg.sender,
+            userRequest.user,
             userRequest.offer,
             userRequest.want,
             userRequest.offerAmount,

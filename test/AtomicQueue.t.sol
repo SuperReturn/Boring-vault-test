@@ -76,6 +76,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
     MockUSDC public USDC;
 
     address internal user = vm.addr(1);
+    address internal otherUser = vm.addr(2);    
 
     event AtomicRequestUpdated(
         bytes32 indexed requestId,
@@ -429,7 +430,6 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         atomicQueue.updateAtomicRequest(req1);
         vm.stopPrank();
 
-        address otherUser = vm.addr(2);
         vm.startPrank(otherUser);
         deal(address(USDC), otherUser, 2_000e6);
         USDC.approve(address(boringVault), type(uint256).max);
@@ -768,8 +768,6 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
 
         vm.stopPrank();
 
-        address otherUser = vm.addr(2);
-
         vm.startPrank(otherUser);
         deal(address(USDC), address(otherUser), 10_000_000e6);
 
@@ -859,6 +857,76 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         atomicSolverV4.redeemSolve(
             atomicQueue, 0, type(uint256).max, teller, req
         );
+        vm.stopPrank();
+    }
+
+    function testUpdateAtomicRequestWithOtherReceiverAndCancel() external {
+        vm.startPrank(user);
+
+        AtomicRequest memory req = AtomicRequest({
+            deadline: uint64(block.timestamp + 1),
+            creationTime: uint64(block.timestamp),
+            offerAmount: uint96(1_000e6),
+            user: otherUser, // set other user as the receiver
+            offer: address(boringVault),
+            want: address(USDC)
+        });
+        atomicQueue.updateAtomicRequest(req);
+
+        // check the asset and share amount
+        assertEq(ERC20(req.offer).balanceOf(address(atomicSolverV4)), 1_000e6);
+        assertEq(ERC20(req.offer).balanceOf(user), userUSDCInitialBalance - 1_000e6);
+        assertEq(ERC20(req.offer).balanceOf(otherUser), 0);
+
+        vm.stopPrank();
+
+        vm.startPrank(otherUser);
+
+        atomicQueue.cancelAtomicRequest(req);
+
+        assertEq(ERC20(req.offer).balanceOf(address(atomicSolverV4)), 0);
+        assertEq(ERC20(req.offer).balanceOf(user), userUSDCInitialBalance - 1_000e6);
+        assertEq(ERC20(req.offer).balanceOf(otherUser), 1_000e6); // the other user (receiver) should receive the shares
+
+        vm.stopPrank();
+    }
+
+    function testUpdateAtomicRequestWithOtherReceiverAndSolveByOtherReceiver() external {
+        vm.startPrank(user);
+        
+        AtomicRequest memory req = AtomicRequest({
+            deadline: uint64(block.timestamp + atomicQueue.maturityTime() * 2),
+            creationTime: uint64(block.timestamp),
+            offerAmount: uint96(1_000e6),
+            user: otherUser, // set other user as the receiver
+            offer: address(boringVault),
+            want: address(USDC)
+        });
+        atomicQueue.updateAtomicRequest(req);
+
+        // check the asset and share amount
+        assertEq(ERC20(req.offer).balanceOf(address(atomicSolverV4)), 1_000e6);
+        assertEq(ERC20(req.offer).balanceOf(address(user)), userUSDCInitialBalance - 1_000e6);
+        assertEq(ERC20(req.offer).balanceOf(address(otherUser)), 0);
+        assertEq(USDC.balanceOf(user), 0);
+        assertEq(USDC.balanceOf(otherUser), 0);
+
+        vm.warp(block.timestamp + atomicQueue.maturityTime() + 1);
+
+        vm.stopPrank();
+
+        vm.startPrank(otherUser);
+        atomicSolverV4.redeemSolve(
+            atomicQueue, 0, type(uint256).max, teller, req
+        );
+
+        // check user and vault balance
+        assertEq(ERC20(req.offer).balanceOf(address(atomicSolverV4)), 0);
+        assertEq(ERC20(req.offer).balanceOf(address(user)), userUSDCInitialBalance - 1_000e6);
+        assertEq(ERC20(req.offer).balanceOf(address(otherUser)), 0); 
+        assertEq(USDC.balanceOf(user), 0);
+        assertEq(USDC.balanceOf(otherUser), 1_000e6); // the other user (receiver) should receive the USDC
+
         vm.stopPrank();
     }
 
