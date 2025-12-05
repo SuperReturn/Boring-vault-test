@@ -3478,13 +3478,13 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
             oftAdapter,
             true,
             "send((uint32,bytes32,uint256,uint256,bytes,bytes,bytes),(uint256,uint256),address)",
-            new address[](3),
+            new address[](1),
             string.concat("Bridge ", asset.symbol(), " to LayerZero endpoint: ", vm.toString(endpoint)),
             getAddress(sourceChain, "rawDataDecoderAndSanitizer")
         );
-        leafs[leafIndex].argumentAddresses[0] = address(uint160(endpoint));
-        leafs[leafIndex].argumentAddresses[1] = getAddress(sourceChain, "boringVault");
-        leafs[leafIndex].argumentAddresses[2] = getAddress(sourceChain, "boringVault");
+        leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "boringVault");
+        // leafs[leafIndex].argumentAddresses[1] = getAddress(sourceChain, "boringVault");
+        // leafs[leafIndex].argumentAddresses[2] = getAddress(sourceChain, "boringVault");
     }
 
     // ========================================= Compound V3 =========================================

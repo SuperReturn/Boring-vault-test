@@ -24,10 +24,25 @@ contract ChainValues {
     // Bridging constants.
     uint64 public constant ccipArbitrumChainSelector = 4949039107694359620;
     uint64 public constant ccipMainnetChainSelector = 5009297550715157269;
+    uint64 public constant ccipMinatoChainSelector = 686603546605904534;
+    uint64 public constant ccipSepoliaChainSelector = 16015286601757825753;
+    // uint64 public constant ccipPlumeChainSelector = 13874588925447303949;
+    uint64 public constant ccipSoneiumChainSelector = 12505351618335765396;
+    uint64 public constant ccipEthereumChainSelector = 5009297550715157269;
+    uint64 public constant ccipPlumeChainSelector = 17912061998839310979;
     uint32 public constant layerZeroBaseEndpointId = 30184;
     uint32 public constant layerZeroMainnetEndpointId = 30101;
     uint32 public constant layerZeroOptimismEndpointId = 30111;
     uint32 public constant layerZeroArbitrumEndpointId = 30110;
+    uint32 public constant layerZeroLineaEndpointId = 30183;
+    uint32 public constant layerZeroScrollEndpointId = 30214;
+    uint32 public constant layerZeroCornEndpointId = 30331; 
+    uint32 public constant layerZeroMinatoEndpointId = 40334;
+    uint32 public constant layerZeroSepoliaEndpointId = 40161;
+    uint32 public constant layerZeroPlumeEndpointId = 30370;
+    uint32 public constant layerZeroSoneiumEndpointId = 30340;
+    uint32 public constant hyperlaneMainnetEndpointId = 1;
+    uint32 public constant hyperlaneEclipseEndpointId = 1408864445;
 
     error ChainValues__ZeroAddress(string chainName, string valueName);
     error ChainValues__ZeroBytes32(string chainName, string valueName);

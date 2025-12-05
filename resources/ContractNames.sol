@@ -40,6 +40,7 @@ contract ContractNames {
     string public constant UsdaiUniswapV3DecoderAndSanitizerName = "SuperUSD Uniswap V3 Decoder and Sanitizer V1.0";
     string public constant UsdaiSakeDecoderAndSanitizerName = "SuperUSD Sake Decoder and Sanitizer V1.0";
     string public constant UsdaiOneInchDecoderAndSanitizerName = "SuperUSD OneInch Decoder and Sanitizer V1.0";
+    string public constant UsdaiLayerZeroDecoderAndSanitizerName = "SuperUSD LayerZero Decoder and Sanitizer V1.1";
 
     // sUSDAI 
     string public constant sUsdaiBoringOnChainQueuesRolesAuthorityName = "sSuperUSD Boring OnChain Queues Roles Authority V1.0";
