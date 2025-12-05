@@ -27,7 +27,7 @@ contract SolveWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractNa
         
         // Initialize contract instances
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
-        boringVault = BoringVault(payable(deployer.getAddress(UsdaiVaultName)));
+        boringVault = BoringVault(payable(previoussuperUSD));
         queue = AtomicQueue(deployer.getAddress(UsdaiVaultQueueName));
         solver = AtomicSolverV4(deployer.getAddress(UsdaiVaultQueueSolverName));
         teller = TellerWithMultiAssetSupport(deployer.getAddress(UsdaiVaultTellerName));
@@ -42,11 +42,7 @@ contract SolveWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractNa
         // Get user's request IDs
         (bytes32[] memory requestIds, AtomicRequest[] memory requests) = queue.getExistingWithdrawRequestsByUser(user);
         require(requestIds.length > 0, "No requests found");
-        
 
-        // Make sure solver has enough USDC approved
-        USDC.approve(address(solver), type(uint256).max);
-        
         // Call redeemSolve
         solver.redeemSolve(
             queue,

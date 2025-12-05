@@ -14,7 +14,7 @@ import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
 /**
- *  source .env && forge script script/DeployAtomicQueue.s.sol:DeployAtomicQueueScript --with-gas-price 70000000 --evm-version london --broadcast --etherscan-api-key $OPTIMISMSCAN_KEY --verify
+ *  source .env && forge script script/DeployAtomicQueue.s.sol:DeployAtomicQueueScript --with-gas-price 70000000 --evm-version london --broadcast --etherscan-api-key $KATANA_BOKUTO_SCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
 contract DeployAtomicQueueScript is Script, ContractNames, KatanaBokutoAddresses {
@@ -57,14 +57,24 @@ contract DeployAtomicQueueScript is Script, ContractNames, KatanaBokutoAddresses
         } else {
             rolesAuthority = RolesAuthority(deployer.getAddress(UsdaiBoringOnChainQueuesRolesAuthorityName));
         }
-
-        creationCode = type(AtomicQueue).creationCode;
-        constructorArgs = abi.encode(owner, rolesAuthority, deployer.getAddress(UsdaiVaultAccountantName));
-        atomicQueue = AtomicQueue(deployer.deployContract(UsdaiVaultQueueName, creationCode, constructorArgs, 0));
-
         creationCode = type(AtomicSolverV4).creationCode;
         constructorArgs = abi.encode(owner, rolesAuthority);
         atomicSolver = AtomicSolverV4(deployer.deployContract(UsdaiVaultQueueSolverName, creationCode, constructorArgs, 0));
+        console.log("Deployed AtomicSolverV4 at ", address(atomicSolver));
+        if(address(atomicSolver) != 0x1DB629316B3fB6B026f9ebD5c379a72235a4d5E9) {
+            console.log("Incorrect SuperUSD AtomicSolverV4 address. Expected", 0x1DB629316B3fB6B026f9ebD5c379a72235a4d5E9, "got", address(atomicSolver));
+            revert("Incorrect SuperUSD AtomicSolverV4 address");
+        }
+
+        creationCode = type(AtomicQueue).creationCode;
+        address accountant = _getAddressIfDeployed(UsdaiVaultAccountantName);
+        constructorArgs = abi.encode(owner, rolesAuthority, accountant, address(atomicSolver));
+        atomicQueue = AtomicQueue(deployer.deployContract(UsdaiVaultQueueName, creationCode, constructorArgs, 0));
+        console.log("Deployed AtomicQueue at ", address(atomicQueue));
+        if(address(atomicQueue) != 0xf3aA6324Aa5C9Ded16Eb7ED651152aC30588BAc1) {
+            console.log("Incorrect SuperUSD AtomicQueue address. Expected", 0xf3aA6324Aa5C9Ded16Eb7ED651152aC30588BAc1, "got", address(atomicQueue));
+            revert("Incorrect SuperUSD AtomicQueue address");
+        }
 
         // set RolesAuthority
         rolesAuthority.setUserRole(canSolve, CAN_SOLVE_ROLE, true);
@@ -81,22 +91,25 @@ contract DeployAtomicQueueScript is Script, ContractNames, KatanaBokutoAddresses
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.removeFromWhitelist.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicQueue), AtomicQueue.updateWhitelistMaturityDivisor.selector, true);
         rolesAuthority.setRoleCapability(INSTANT_WITHDRAW_ROLE, address(atomicQueue), AtomicQueue.instantWithdraw.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.setSolver.selector, true);
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.cancelAtomicRequestByAdmin.selector, true);
         rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicSolver), AtomicSolverV4.finishSolve.selector, true);
         rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicSolver), AtomicSolverV4.rescueTokens.selector, true);
+        rolesAuthority.setRoleCapability(ONLY_QUEUE_ROLE, address(atomicSolver), AtomicSolverV4.approveOfferForQueue.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.updateAtomicRequest.selector, true);
         rolesAuthority.setPublicCapability(address(atomicQueue), AtomicQueue.cancelAtomicRequest.selector, true);
         rolesAuthority.setPublicCapability(address(atomicSolver), AtomicSolverV4.redeemSolve.selector, true);
 
         // extra setting
-        atomicQueue.setMaturityTime(3 minutes);
+        // atomicQueue.setMaturityTime(3 minutes);
 
         // extra role setting for other contracts
         RolesAuthority vaultRolesAuthority = RolesAuthority(deployer.getAddress(UsdaiVaultRolesAuthorityName));
         vaultRolesAuthority.setUserRole(address(atomicSolver), 12, true); // 12: solver role
         vaultRolesAuthority.setUserRole(address(atomicQueue), 12, true); // 12: solver role
         vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiVaultTellerName), 3, true); // 3: buy role
-        vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiLayerZeroTellerName), 3, true); // 3: buy role
-        vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiChainlinkCCIPTellerName), 3, true); // 3: buy role
+        // vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiLayerZeroTellerName), 3, true); // 3: buy role
+        // vaultRolesAuthority.setUserRole(deployer.getAddress(UsdaiChainlinkCCIPTellerName), 3, true); // 3: buy role
         vm.stopBroadcast();
     }
 

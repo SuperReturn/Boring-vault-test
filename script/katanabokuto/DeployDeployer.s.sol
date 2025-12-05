@@ -45,12 +45,20 @@ contract DeployDeployerScript is Script, ContractNames, KatanaBokutoAddresses {
         
         require(deployerAddress != address(0), "CREATE2 deployment failed");
         console.log("Deployer successfully deployed at:", deployerAddress);
+        if(deployerAddress != 0xb654e5d7F1dbFCe3945551a72764e7b06DB25994) {
+            console.log("Incorrect Deployer address. Expected", 0xb654e5d7F1dbFCe3945551a72764e7b06DB25994, "got", deployerAddress);
+            revert("Incorrect Deployer address");
+        }
 
         deployer = Deployer(deployerAddress);
         creationCode = type(RolesAuthority).creationCode;
         constructorArgs = abi.encode(dev0Address, Authority(address(0)));
         rolesAuthority =
             RolesAuthority(deployer.deployContract(UsdaiVaultRolesAuthorityName, creationCode, constructorArgs, 0));
+        if(address(rolesAuthority) != 0x0953c2E6c82633CdA982E90A6287f66493c5cF0B) {
+            console.log("Incorrect RolesAuthority address. Expected", 0x0953c2E6c82633CdA982E90A6287f66493c5cF0B, "got", address(rolesAuthority));
+            revert("Incorrect RolesAuthority address");
+        }
 
         deployer.setAuthority(rolesAuthority);
 

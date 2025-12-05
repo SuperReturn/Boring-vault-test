@@ -823,10 +823,12 @@ contract ChainValues {
         values[sepolia]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
         values[sepolia]["USDC"] = 0x22b592e31BC672DcF5DEAEa8e2dFe54254D0F855.toBytes32();
     }
+    
     function _addKatanaBokutoValues() private {
-        values[katanabokuto]["deployerAddress"] = 0x8F7a43819df55B1181C1Bd15948b0be9eF2fD385.toBytes32();
+        values[katanabokuto]["deployerAddress"] = 0xb654e5d7F1dbFCe3945551a72764e7b06DB25994.toBytes32();
         values[katanabokuto]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
         values[katanabokuto]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
-        values[katanabokuto]["USDC"] = 0xc2a4C310F2512A17Ac0047cf871aCAed3E62bB4B.toBytes32(); // vdusdc
+        values[katanabokuto]["USDC"] = 0xd00Ab814Ff27F3183CE2B0f0C07Df72006b64876.toBytes32(); // mock vbusdc
+        //values[katanabokuto]["USDC"] = 0xc2a4C310F2512A17Ac0047cf871aCAed3E62bB4B.toBytes32(); // real testnet vdusdc
     }
 }

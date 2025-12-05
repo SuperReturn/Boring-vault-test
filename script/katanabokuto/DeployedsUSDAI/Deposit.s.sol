@@ -14,8 +14,8 @@ import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper
 
 /**
  * @title USDAI Deposit Integration Test
- * @notice This script demonstrates how to deposit USDC into the USDAI vault on Sepolia
- * @dev Run with: forge script script/USDAIIntegrationTest/Deposit.sol --rpc-url $MINATO_RPC_URL
+ * @notice This script demonstrates how to deposit USDC into the USDAI vault on Katana Bokuto testnet
+ * @dev Run with: forge script script/USDAIIntegrationTest/Deposit.sol --rpc-url $KATANA_BOKUTO_RPC_URL
  */
 contract sUSDAIDepositScript is Script, KatanaBokutoAddresses, ContractNames, MerkleTreeHelper{
     // Test parameters
@@ -34,7 +34,7 @@ contract sUSDAIDepositScript is Script, KatanaBokutoAddresses, ContractNames, Me
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances
-        boringVault = BoringVault(payable(deployer.getAddress(sUsdaiVaultName)));
+        boringVault = BoringVault(payable(previoussSuperUSD));
         teller = TellerWithMultiAssetSupport(deployer.getAddress(sUsdaiVaultTellerName));
         lens = ArcticArchitectureLens(deployer.getAddress(sUsdaiArcticArchitectureLensName));
         accountant = AccountantWithRateProviders(deployer.getAddress(sUsdaiVaultAccountantName));
