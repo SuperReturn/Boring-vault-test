@@ -17,6 +17,7 @@ contract ChainValues {
     string public constant base = "base";
     string public constant plume = "plume";
     string public constant soneium = "soneium";
+    string public constant katana = "katana";
 
     string public constant sepolia = "sepolia";
     string public constant katanabokuto = "katanabokuto";
@@ -70,6 +71,7 @@ contract ChainValues {
         _addPlumeValues();
         _addSoneiumValues();
         _addEthereumValues();
+        _addKatanaValues();
         
         // Add testnet values
         _addSepoliaValues();
@@ -824,6 +826,13 @@ contract ChainValues {
         values[sepolia]["USDC"] = 0x22b592e31BC672DcF5DEAEa8e2dFe54254D0F855.toBytes32();
     }
     
+    function _addKatanaValues() private {
+        values[katana]["deployerAddress"] = 0xb654e5d7F1dbFCe3945551a72764e7b06DB25994.toBytes32();
+        values[katana]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
+        values[katana]["dev1Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
+        values[katana]["USDC"] = 0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36.toBytes32(); // vbusdc
+    }
+
     function _addKatanaBokutoValues() private {
         values[katanabokuto]["deployerAddress"] = 0xb654e5d7F1dbFCe3945551a72764e7b06DB25994.toBytes32();
         values[katanabokuto]["dev0Address"] = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4.toBytes32();
