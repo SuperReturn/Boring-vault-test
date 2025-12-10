@@ -8,7 +8,7 @@ import {Deployer} from "src/helper/Deployer.sol";
 import {AtomicQueue} from "src/atomic-queue/AtomicQueue.sol";
 import {AtomicSolverV4} from "src/atomic-queue/AtomicSolverV4.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {KatanaBokutoAddresses} from "test/resources/KatanaBokutoAddresses.sol";
+import {KatanaAddresses} from "test/resources/KatanaAddresses.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -17,7 +17,7 @@ import "forge-std/StdJson.sol";
  *  source .env && forge script script/DeployAtomicQueue.s.sol:DeployAtomicQueueScript --with-gas-price 70000000 --evm-version london --broadcast --etherscan-api-key $KATANA_BOKUTO_SCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployAtomicQueueScript is Script, ContractNames, KatanaBokutoAddresses {
+contract DeployAtomicQueueScript is Script, ContractNames, KatanaAddresses {
     uint256 public privateKey;
 
     address public devOwner = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
@@ -40,7 +40,7 @@ contract DeployAtomicQueueScript is Script, ContractNames, KatanaBokutoAddresses
 
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
-        vm.createSelectFork("katanabokuto");
+        vm.createSelectFork("katana");
     }
 
     function run() external {

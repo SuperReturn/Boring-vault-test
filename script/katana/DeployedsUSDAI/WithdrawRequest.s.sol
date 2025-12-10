@@ -7,13 +7,13 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {KatanaBokutoAddresses} from "test/resources/KatanaBokutoAddresses.sol";
+import {KatanaAddresses} from "test/resources/KatanaAddresses.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 
-contract USDAIWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractNames, MerkleTreeHelper {
+contract sUSDAIWithdrawRequestScript is Script, KatanaAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     BoringVault boringVault;
@@ -27,16 +27,16 @@ contract USDAIWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractNa
     uint256 withdrawShares;
 
     function setUp() public {
-        vm.createSelectFork("katanabokuto");
-        setSourceChainName("katanabokuto");
+        vm.createSelectFork("katana");
+        setSourceChainName("katana");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances
-        boringVault = BoringVault(payable(previoussuperUSD));
-        teller = TellerWithMultiAssetSupport(deployer.getAddress(UsdaiVaultTellerName));
-        lens = ArcticArchitectureLens(deployer.getAddress(UsdaiArcticArchitectureLensName));
-        accountant = AccountantWithRateProviders(deployer.getAddress(UsdaiVaultAccountantName));
-        queue = AtomicQueue(deployer.getAddress(UsdaiVaultQueueName));
+        boringVault = BoringVault(payable(previoussSuperUSD));
+        teller = TellerWithMultiAssetSupport(deployer.getAddress(sUsdaiVaultTellerName));
+        lens = ArcticArchitectureLens(deployer.getAddress(sUsdaiArcticArchitectureLensName));
+        accountant = AccountantWithRateProviders(deployer.getAddress(sUsdaiVaultAccountantName));
+        queue = AtomicQueue(deployer.getAddress(sUsdaiVaultQueueName));
     }
 
     function run() public {
@@ -63,7 +63,7 @@ contract USDAIWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractNa
                 offerAmount: uint96(withdrawShares),
                 user: user,
                 offer: address(boringVault),
-                want: address(USDC)
+                want: address(USDAI)
             });
 
             // Send request to queue

@@ -7,13 +7,13 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {KatanaBokutoAddresses} from "test/resources/KatanaBokutoAddresses.sol";
+import {KatanaAddresses} from "test/resources/KatanaAddresses.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 
-contract USDAIWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractNames, MerkleTreeHelper {
+contract USDAIWithdrawRequestScript is Script, KatanaAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     BoringVault boringVault;
@@ -27,8 +27,8 @@ contract USDAIWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractNa
     uint256 withdrawShares;
 
     function setUp() public {
-        vm.createSelectFork("katanabokuto");
-        setSourceChainName("katanabokuto");
+        vm.createSelectFork("katana");
+        setSourceChainName("katana");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances

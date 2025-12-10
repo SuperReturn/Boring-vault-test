@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import {Deployer} from "src/helper/Deployer.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {KatanaBokutoAddresses} from "test/resources/KatanaBokutoAddresses.sol";
+import {KatanaAddresses} from "test/resources/KatanaAddresses.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -13,7 +13,7 @@ import "forge-std/StdJson.sol";
  *  source .env && forge script script/DeployDeployer.s.sol:DeployDeployerScript --with-gas-price 30000000000 --slow --broadcast --etherscan-api-key $ETHERSCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployDeployerScript is Script, ContractNames, KatanaBokutoAddresses {
+contract DeployDeployerScript is Script, ContractNames, KatanaAddresses {
     uint256 public privateKey;
 
     // Contracts to deploy
@@ -24,7 +24,7 @@ contract DeployDeployerScript is Script, ContractNames, KatanaBokutoAddresses {
 
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
-        vm.createSelectFork("katanabokuto");
+        vm.createSelectFork("katana");
     }
 
     function run() external {
@@ -55,6 +55,7 @@ contract DeployDeployerScript is Script, ContractNames, KatanaBokutoAddresses {
         constructorArgs = abi.encode(dev0Address, Authority(address(0)));
         rolesAuthority =
             RolesAuthority(deployer.deployContract(UsdaiVaultRolesAuthorityName, creationCode, constructorArgs, 0));
+        console.log("RolesAuthority successfully deployed at:", address(rolesAuthority));
         if(address(rolesAuthority) != 0x0953c2E6c82633CdA982E90A6287f66493c5cF0B) {
             console.log("Incorrect RolesAuthority address. Expected", 0x0953c2E6c82633CdA982E90A6287f66493c5cF0B, "got", address(rolesAuthority));
             revert("Incorrect RolesAuthority address");

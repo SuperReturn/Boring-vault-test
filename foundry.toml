@@ -29,6 +29,7 @@ arbitrum = "${ARBITRUM_RPC_URL}"
 optimism = "${OPTIMISM_RPC_URL}"
 base = "${BASE_RPC_URL}"
 sepolia = "${SEPOLIA_RPC_URL}"
+katana = "${KATANA_RPC_URL}"
 katanabokuto = "${KATANA_BOKUTO_RPC_URL}"
 plume = "${PLUME_MAINNET_RPC_URL}"
 soneium = "${SONEIUM_RPC_URL}"
@@ -43,7 +44,8 @@ optimism = { key = "${OPTIMISMSCAN_KEY}", chain = 10, url = "https://api.ethersc
 # base = { key = "${BASESCAN_KEY}" }
 # sepolia = { key = "${SEPOLIA_KEY}", chain = 11155111, url = "https://api.etherscan.io/v2/api" }
 sepolia = { key = "${SEPOLIA_KEY}", chain = 11155111, url = "https://api.etherscan.io/v2/api?chainid=11155111" }
-# katanabokuto = { key = "${KATANA_BOKUTO_KEY}", chain = 737373, url = "https://explorer-bokuto.katanarpc.com/api" }
+katana = { key = "${KATANA_KEY}", chain = 747474, url = "https://explorer.katanarpc.com/api" }
+katanabokuto = { key = "${KATANA_BOKUTO_KEY}", chain = 737373, url = "https://explorer-bokuto.katanarpc.com/api" }
 soneium = { key = "${SONEIUM_KEY}", chain = 1868, url = "https://soneium.blockscout.com/api" }
 
 [fmt]

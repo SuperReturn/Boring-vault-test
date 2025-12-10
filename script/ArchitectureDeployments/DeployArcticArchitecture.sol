@@ -158,6 +158,11 @@ contract DeployArcticArchitecture is Script, ContractNames {
                 constructorArgs = abi.encode(params.owner, Authority(address(0)));
                 rolesAuthority =
                     RolesAuthority(deployer.deployContract(names.rolesAuthority, creationCode, constructorArgs, 0));
+                console.log("Deployed RolesAuthority at ", address(rolesAuthority));
+                if(address(rolesAuthority) != 0xAa718B03071601b02bEe0Ab672Fb9F5997B250E7) {
+                    console.log("Incorrect sSuperUSD RolesAuthority address. Expected", 0xAa718B03071601b02bEe0Ab672Fb9F5997B250E7, "got", address(rolesAuthority));
+                    revert("Incorrect SuperUSD RolesAuthority address");
+                }
             } else {
                 rolesAuthority = RolesAuthority(deployedAddress);
             }
@@ -166,6 +171,11 @@ contract DeployArcticArchitecture is Script, ContractNames {
             if (deployedAddress == address(0)) {
                 creationCode = type(ArcticArchitectureLens).creationCode;
                 lens = ArcticArchitectureLens(deployer.deployContract(names.lens, creationCode, hex"", 0));
+                console.log("Deployed lens at ", address(lens));
+                if(address(lens) != 0xdcd147536a94260D27246dc1C82173a03a2f2582) {
+                    console.log("Incorrect sSuperUSD Lens address. Expected", 0xdcd147536a94260D27246dc1C82173a03a2f2582, "got", address(lens));
+                    revert("Incorrect SuperUSD Lens address");
+                }
             } else {
                 lens = ArcticArchitectureLens(deployedAddress);
             }
@@ -182,6 +192,11 @@ contract DeployArcticArchitecture is Script, ContractNames {
                         hex"",
                         0
                     );
+                    console.log("Deployed vault impl at ", implementation);
+                    if(implementation != 0xee4f83E83b699E91960FA237cC3188B71cc5713F) {
+                        console.log("Incorrect sSuperUSD vault implementation address. Expected", 0xee4f83E83b699E91960FA237cC3188B71cc5713F, "got", implementation);
+                        revert("Incorrect SuperUSD vault implementation address");
+                    }
 
                     // Prepare initializer data for UUPS proxy
                     bytes memory initializer = abi.encodeWithSelector(
@@ -205,6 +220,11 @@ contract DeployArcticArchitecture is Script, ContractNames {
                         hex"",
                         0
                     );
+                    console.log("Deployed vault proxy at ", proxy);
+                    if(proxy != 0x139450C2dCeF827C9A2a0Bb1CB5506260940c9fd) {
+                        console.log("Incorrect sSuperUSD vault proxy address. Expected", 0x139450C2dCeF827C9A2a0Bb1CB5506260940c9fd, "got", proxy);
+                        revert("Incorrect SuperUSD vault proxy address");
+                    }
 
                     boringVault = BoringVault(payable(proxy));
                 } else {
@@ -219,6 +239,11 @@ contract DeployArcticArchitecture is Script, ContractNames {
                 manager = ManagerWithMerkleVerification(
                     deployer.deployContract(names.manager, creationCode, constructorArgs, 0)
                 );
+                console.log("Deployed manager at ", address(manager));
+                if(address(manager) != 0x95947f12D76Cb74Ca3F406dd0f7C1fb65e651Fd5) {
+                    console.log("Incorrect sSuperUSD Manager address. Expected", 0x95947f12D76Cb74Ca3F406dd0f7C1fb65e651Fd5, "got", address(manager));
+                    revert("Incorrect SuperUSD Manager address");
+                }
             } else {
                 manager = ManagerWithMerkleVerification(deployedAddress);
             }
@@ -241,6 +266,11 @@ contract DeployArcticArchitecture is Script, ContractNames {
                 accountant = AccountantWithRateProviders(
                     deployer.deployContract(names.accountant, creationCode, constructorArgs, 0)
                 );
+                console.log("Deployed accountant at ", address(accountant));
+                if(address(accountant) != 0x2B570475489e55b63bC5121EEe75f5D22C9C17C0) {
+                    console.log("Incorrect sSuperUSD accountant address. Expected", 0x2B570475489e55b63bC5121EEe75f5D22C9C17C0, "got", address(accountant));
+                    revert("Incorrect SuperUSD accountant address");
+                }
             } else {
                 accountant = AccountantWithRateProviders(deployedAddress);
             }
@@ -252,6 +282,11 @@ contract DeployArcticArchitecture is Script, ContractNames {
                 teller = TellerWithMultiAssetSupport(
                     payable(deployer.deployContract(names.teller, creationCode, constructorArgs, 0))
                 );
+                console.log("Deployed teller at ", address(teller));
+                if(address(teller) != 0xa8aA5c00d6c3f7A77FC5769770f6bC7b9244699b) {
+                    console.log("Incorrect sSuperUSD teller address. Expected", 0xa8aA5c00d6c3f7A77FC5769770f6bC7b9244699b, "got", address(teller));
+                    revert("Incorrect SuperUSD teller address");
+                }
             } else {
                 teller = TellerWithMultiAssetSupport(payable(deployedAddress));
             }
@@ -264,6 +299,11 @@ contract DeployArcticArchitecture is Script, ContractNames {
                     params.decoderAndSanitizerConstructorArgs,
                     0
                 );
+                console.log("Deployed decoder at ", rawDataDecoderAndSanitizer);
+                if(address(rawDataDecoderAndSanitizer) != 0xBaD2863C8F58B8C97b24413073eE7428569fe963) {
+                    console.log("Incorrect sSuperUSD decoder address. Expected", 0xBaD2863C8F58B8C97b24413073eE7428569fe963, "got", rawDataDecoderAndSanitizer);
+                    revert("Incorrect SuperUSD decoder address");
+                }
             } else {
                 rawDataDecoderAndSanitizer = deployedAddress;
             }
@@ -275,6 +315,11 @@ contract DeployArcticArchitecture is Script, ContractNames {
                     abi.encode(params.owner, address(boringVault), address(accountant), params.delayedWithdrawFeeAddress);
                 delayedWithdrawer =
                     DelayedWithdraw(deployer.deployContract(names.delayedWithdrawer, creationCode, constructorArgs, 0));
+                console.log("Deployed delayedWithdrawer at ", address(delayedWithdrawer));
+                if(address(delayedWithdrawer) != 0xaaacF927C6E525Cf2652155Dc730B13a5cD71de2) {
+                    console.log("Incorrect sSuperUSD delayedWithdrawer address. Expected", 0xaaacF927C6E525Cf2652155Dc730B13a5cD71de2, "got", address(delayedWithdrawer));
+                    revert("Incorrect SuperUSD delayedWithdrawer address");
+                }
             } else {
                 delayedWithdrawer = DelayedWithdraw(deployedAddress);
             }

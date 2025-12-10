@@ -77,13 +77,13 @@ contract DeployTestVaultScript is DeployArcticArchitecture, KatanaBokutoAddresse
 
         bool allowPublicDeposits = true;
         bool allowPublicWithdraws = true;
-        uint64 shareLockPeriod = 1;
+        uint64 shareLockPeriod = 0;
         address delayedWithdrawFeeAddress = liquidPayoutAddress;
 
         vm.startBroadcast(privateKey);
 
         _deploy(DeployParams({
-            previousBoringVault: address(0),
+            previousBoringVault: previoussSuperUSD,
             deploymentFileName: "sSuperUSDKatanaBokutoDeployment.json",
             owner: owner,
             boringVaultName: boringVaultName,

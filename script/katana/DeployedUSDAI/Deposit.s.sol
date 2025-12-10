@@ -7,17 +7,17 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {KatanaBokutoAddresses} from "test/resources/KatanaBokutoAddresses.sol";
+import {KatanaAddresses} from "test/resources/KatanaAddresses.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 
 /**
  * @title USDAI Deposit Integration Test
- * @notice This script demonstrates how to deposit USDC into the USDAI vault on Katana Bokuto testnet
+ * @notice This script demonstrates how to deposit USDC into the USDAI vault on Katana  testnet
  * @dev Run with: forge script script/USDAIIntegrationTest/Deposit.sol --rpc-url $KATANA_BOKUTO_RPC_URL
  */
-contract USDAIDepositScript is Script, KatanaBokutoAddresses, ContractNames, MerkleTreeHelper{
+contract USDAIDepositScript is Script, KatanaAddresses, ContractNames, MerkleTreeHelper{
     // Test parameters
     uint256 public constant USDC_DEPOSIT_AMOUNT = 5 * 1e5; // 1 USDC (6 decimals)
     
@@ -29,8 +29,8 @@ contract USDAIDepositScript is Script, KatanaBokutoAddresses, ContractNames, Mer
     AccountantWithRateProviders accountant;
 
     function setUp() public {
-        vm.createSelectFork("katanabokuto");
-        setSourceChainName("katanabokuto");
+        vm.createSelectFork("katana");
+        setSourceChainName("katana");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances

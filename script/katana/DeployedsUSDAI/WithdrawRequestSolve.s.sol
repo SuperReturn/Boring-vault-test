@@ -6,14 +6,14 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {BoringVault} from "src/base/BoringVault.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {AtomicSolverV4} from "src/atomic-queue/AtomicSolverV4.sol";
-import {KatanaBokutoAddresses} from "test/resources/KatanaBokutoAddresses.sol";
+import {KatanaAddresses} from "test/resources/KatanaAddresses.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 import {console} from "forge-std/console.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 
-contract SolveWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractNames, MerkleTreeHelper {
+contract SolveWithdrawRequestScript is Script, KatanaAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     AtomicQueue queue;
@@ -22,15 +22,15 @@ contract SolveWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractNa
     TellerWithMultiAssetSupport teller;
     
     function setUp() public {
-        vm.createSelectFork("katanabokuto");
-        setSourceChainName("katanabokuto");
+        vm.createSelectFork("katana");
+        setSourceChainName("katana");
         
         // Initialize contract instances
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
-        boringVault = BoringVault(payable(previoussuperUSD));
-        queue = AtomicQueue(deployer.getAddress(UsdaiVaultQueueName));
-        solver = AtomicSolverV4(deployer.getAddress(UsdaiVaultQueueSolverName));
-        teller = TellerWithMultiAssetSupport(deployer.getAddress(UsdaiVaultTellerName));
+        boringVault = BoringVault(payable(previoussSuperUSD));
+        queue = AtomicQueue(deployer.getAddress(sUsdaiVaultQueueName));
+        solver = AtomicSolverV4(deployer.getAddress(sUsdaiVaultQueueSolverName));
+        teller = TellerWithMultiAssetSupport(deployer.getAddress(sUsdaiVaultTellerName));
     }
 
     function run() public {
@@ -42,7 +42,7 @@ contract SolveWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractNa
         // Get user's request IDs
         (bytes32[] memory requestIds, AtomicRequest[] memory requests) = queue.getExistingWithdrawRequestsByUser(user);
         require(requestIds.length > 0, "No requests found");
-
+        
         // Call redeemSolve
         solver.redeemSolve(
             queue,

@@ -32,7 +32,7 @@ contract sUSDAIWithdrawRequestScript is Script, KatanaBokutoAddresses, ContractN
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances
-        boringVault = BoringVault(payable(deployer.getAddress(sUsdaiVaultName)));
+        boringVault = BoringVault(payable(previoussSuperUSD));
         teller = TellerWithMultiAssetSupport(deployer.getAddress(sUsdaiVaultTellerName));
         lens = ArcticArchitectureLens(deployer.getAddress(sUsdaiArcticArchitectureLensName));
         accountant = AccountantWithRateProviders(deployer.getAddress(sUsdaiVaultAccountantName));

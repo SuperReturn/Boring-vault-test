@@ -7,13 +7,13 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {KatanaBokutoAddresses} from "test/resources/KatanaBokutoAddresses.sol";
+import {KatanaAddresses} from "test/resources/KatanaAddresses.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 
-contract USDAIInstantWithdrawScript is Script, KatanaBokutoAddresses, ContractNames, MerkleTreeHelper {
+contract sUSDAICancelRequestScript is Script, KatanaAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     BoringVault boringVault;
@@ -23,24 +23,26 @@ contract USDAIInstantWithdrawScript is Script, KatanaBokutoAddresses, ContractNa
     AtomicQueue queue;
 
     function setUp() public {
-        vm.createSelectFork("katanabokuto");
-        setSourceChainName("katanabokuto");
+        vm.createSelectFork("katana");
+        setSourceChainName("katana");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances
-        boringVault = BoringVault(payable(deployer.getAddress(UsdaiVaultName)));
-        teller = TellerWithMultiAssetSupport(deployer.getAddress(UsdaiVaultTellerName));
-        lens = ArcticArchitectureLens(deployer.getAddress(UsdaiArcticArchitectureLensName));
-        accountant = AccountantWithRateProviders(deployer.getAddress(UsdaiVaultAccountantName));
-        queue = AtomicQueue(deployer.getAddress(UsdaiVaultQueueName));
+        boringVault = BoringVault(payable(deployer.getAddress(sUsdaiVaultName)));
+        teller = TellerWithMultiAssetSupport(deployer.getAddress(sUsdaiVaultTellerName));
+        lens = ArcticArchitectureLens(deployer.getAddress(sUsdaiArcticArchitectureLensName));
+        accountant = AccountantWithRateProviders(deployer.getAddress(sUsdaiVaultAccountantName));
+        queue = AtomicQueue(deployer.getAddress(sUsdaiVaultQueueName));
     }
 
     function run() public {
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         address user = vm.addr(privateKey);
+
         vm.startBroadcast(privateKey);
-        ERC20(address(boringVault)).approve(address(queue), 1e5);
-        queue.instantWithdraw(ERC20(address(boringVault)), USDC, 1e5, 0, teller);
+        
+        (bytes32[] memory requestIds, AtomicRequest[] memory requests) = queue.getExistingWithdrawRequestsByUser(user);
+        queue.cancelAtomicRequest(requests[0]);
         
         vm.stopBroadcast();
     }
