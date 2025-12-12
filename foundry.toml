@@ -17,7 +17,8 @@ remappings = [
     "@openzeppelin/=lib/openzeppelin-contracts/",
     "@ccip=lib/ccip/",
     "@oapp-auth=lib/OAppAuth/src/",
-    "@cryptoalgebra/Algebra=lib/Algebra/src/core/"
+    "@cryptoalgebra/Algebra=lib/Algebra/src/core/",
+    "@layerzerolabs/lz-evm-protocol-v2/=lib/OAppAuth/lib/LayerZero-V2/packages/layerzero-v2/evm/protocol/"
 ]
 
 [rpc_endpoints]

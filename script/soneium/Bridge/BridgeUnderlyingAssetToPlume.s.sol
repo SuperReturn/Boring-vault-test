@@ -3,7 +3,6 @@ pragma solidity 0.8.21;
 
 import "forge-std/Script.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
-import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {BoringVault} from "src/base/BoringVault.sol";
 import {LayerZeroTeller} from "src/base/Roles/CrossChain/Bridges/LayerZero/LayerZeroTeller.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
