@@ -16,6 +16,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { TellerWithMultiAssetSupport } from "./Roles/TellerWithMultiAssetSupport.sol";
+import { AtomicQueue } from "./../atomic-queue/AtomicQueue.sol";
 
 contract AirVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable {
     using Address for address;
@@ -41,24 +42,52 @@ contract AirVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable {
     /// @notice The address of the SuperUSD token contract
     address public immutable superusd;
 
+    /// @notice The address of the sSuperUSD token contract
+    address public immutable ssuperusd;
+
     /// @notice The address of the SuperUSD teller contract
     address public immutable superusdTeller;
+
+    /// @notice The address of the sSuperUSD teller contract
+    address public immutable ssuperusdTeller;
+    
+    /// @notice The address of the sSuperUSD AtomicQueue contract
+    address public immutable ssuperusdAtomicQueue;
 
     error AddressZero();
     error InsufficientMinted();
 
     //============================== CONSTRUCTOR ===============================
+
     /// @custom:oz-upgrades-unsafe-allow constructor
+    /// @notice Constructs the AirVault implementation contract.
+    /// @param superusd_ The address of the SuperUSD token contract.
+    /// @param ssuperusd_ The address of the sSuperUSD token contract.
+    /// @param superusdTeller_ The address of the SuperUSD teller.
+    /// @param ssuperusdTeller_ The address of the sSuperUSD teller.
+    /// @param ssuperusdAtomicQueue_ The address of the sSuperUSD AtomicQueue contract.
     constructor(
         address superusd_,
-        address superusdTeller_
+        address ssuperusd_,
+        address superusdTeller_,
+        address ssuperusdTeller_,
+        address ssuperusdAtomicQueue_
     ) Auth(address(0), Authority(address(0))) {
-        if(superusd_ == address(0) || superusdTeller_ == address(0)) {
+        if(
+            superusd_ == address(0) ||
+            ssuperusd_ == address(0) ||
+            superusdTeller_ == address(0) ||
+            ssuperusdTeller_ == address(0) ||
+            ssuperusdAtomicQueue_ == address(0)
+        ) {
             revert AddressZero();
         }
         _disableInitializers();
         superusd = superusd_;
+        ssuperusd = ssuperusd_;
         superusdTeller = superusdTeller_;
+        ssuperusdTeller = ssuperusdTeller_;
+        ssuperusdAtomicQueue = ssuperusdAtomicQueue_;
     }
 
     function initialize(
@@ -101,33 +130,68 @@ contract AirVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable {
         if(asset == superusd) {
             // mint the vault token 1:1
             amountMinted = depositAmount;
-            if(amountMinted < minimumMint) revert InsufficientMinted();
-            _mint(receiver, amountMinted);
+        }
+        // if the asset is ssuperusd
+        else if(asset == ssuperusd) {
+            // redeem the ssuperusd to superusd
+            amountMinted = _convertSSuperUSDToSuperUSD(depositAmount);
         }
         // if the asset is another token
         else {
-            // check approval of asset to superusd
-            _checkApproval(asset, superusd, depositAmount);
-            // convert asset to superusd
-            amountMinted = TellerWithMultiAssetSupport(superusdTeller).deposit(ERC20(asset), depositAmount, 0); // will revert if asset not supported
-            if(amountMinted < minimumMint) revert InsufficientMinted();
-            _mint(receiver, amountMinted);
+            // deposit the asset into superusd
+            amountMinted = _convertAssetToSuperUSD(asset, depositAmount);
         }
+        // check minimum mint
+        if(amountMinted < minimumMint) revert InsufficientMinted();
+        // mint the vault token
+        _mint(receiver, amountMinted);
+    }
+
+    /// @notice Converts an asset to superusd.
+    /// @param asset The asset to convert.
+    /// @param depositAmount The amount to convert.
+    /// @return superusdAmount The amount of superusd minted.
+    function _convertAssetToSuperUSD(address asset, uint256 depositAmount) internal returns (uint256 superusdAmount) {
+        // check approval of asset to superusd
+        _checkApproval(asset, superusd, depositAmount);
+        // convert asset to superusd
+        superusdAmount = TellerWithMultiAssetSupport(superusdTeller).deposit(ERC20(asset), depositAmount, 0); // will revert if asset not supported
+    }
+
+    /// @notice Converts ssuperusd to superusd.
+    /// @param depositAmount The amount of ssuperusd to convert.
+    /// @return superusdAmount The amount of superusd redeemed.
+    function _convertSSuperUSDToSuperUSD(uint256 depositAmount) internal returns (uint256 superusdAmount) {
+        // check approval of ssuperusd to queue
+        _checkApproval(ssuperusd, ssuperusdAtomicQueue, depositAmount);
+        // call instantWithdraw on sSuperUSD to get superUSD
+        superusdAmount = AtomicQueue(ssuperusdAtomicQueue).instantWithdraw(
+            ERC20(ssuperusd),
+            ERC20(superusd),
+            depositAmount,
+            0,
+            TellerWithMultiAssetSupport(ssuperusdTeller)
+        );
     }
 
     //============================== WITHDRAW ===============================
 
-    // withdraw from the vault and send superusd to receiver
+    /// @notice Withdraws from the vault.
+    /// @param amount The amount to withdraw.
+    /// @param receiver The address to receive the assets.
     function withdraw(uint256 amount, address receiver) external {
-        // Burn shares from msg.sender
+        // burn shares from msg.sender
         _burn(msg.sender, amount);
-        // Transfer assets from this contract to receiver
+        // transfer superusd from this contract to receiver
         SafeERC20.safeTransfer(IERC20(superusd), receiver, amount);
     }
 
     //============================== TOKEN SECONDS ===============================
 
-    function getAccountTokenSeconds(address account) external view returns (uint216) {
+    /// @notice Gets the tokenSeconds for an account, updated to the current timestamp.
+    /// @param account The account to get the tokenSeconds for.
+    /// @return tokenSeconds_ The tokenSeconds for the account.
+    function getAccountTokenSeconds(address account) external view returns (uint216 tokenSeconds_) {
         // do not track address zero
         if(account == address(0)) revert AddressZero();
         // get last known token seconds
@@ -144,17 +208,22 @@ contract AirVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable {
         return SafeCast.toUint216(tokenSeconds.tokenSeconds + accumulated);
     }
 
-    // called on balance changes
+    /// @notice Called on balance changes.
+    /// @param from The account the tokens are transferred from.
+    /// @param to The account the tokens are transferred to.
+    /// @param value The amount of tokens transferred.
     function _update(address from, address to, uint256 value) internal virtual override {
         // accumulate token seconds for sender and receiver
         _accumulateTokenSeconds(from);
         _accumulateTokenSeconds(to);
         // add the receiver to the holders list
-        if(value > 0) _holders.add(to);
+        if(to != address(0) && value > 0) _holders.add(to);
         // update balances
         super._update(from, to, value);
     }
 
+    /// @notice Accumulates token seconds for an account up to the current timestamp.
+    /// @param account The account to accumulate token seconds for.
     function _accumulateTokenSeconds(address account) internal {
         // do not track address zero
         if(account == address(0)) return;
@@ -192,10 +261,12 @@ contract AirVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable {
 
     //============================== HOLDERS ===============================
 
+    /// @notice Returns the number of holders past and present.
     function getNumberOfHolders() external view returns (uint256) {
         return _holders.length();
     }
 
+    /// @notice Returns the address of the holder at the given index.
     function getHolderAtIndex(uint256 index) external view returns (address) {
         return _holders.at(index);
     }
@@ -224,10 +295,10 @@ contract AirVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable {
 
     //============================== HELPER FUNCTIONS ===============================
 
-    /// @notice Checks the approval of an ERC20 token from this contract to another address
-    /// @param token The token to check allowance
-    /// @param recipient The address to give allowance to
-    /// @param minAmount The minimum amount of the allowance
+    /// @notice Checks the approval of an ERC20 token from this contract to another address.
+    /// @param token The token to check allowance.
+    /// @param recipient The address to give allowance to.
+    /// @param minAmount The minimum amount of the allowance.
     function _checkApproval(address token, address recipient, uint256 minAmount) internal {
         // If current allowance is insufficient
         if(IERC20(token).allowance(address(this), recipient) < minAmount) {
