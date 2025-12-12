@@ -214,6 +214,7 @@ contract AirVaultTest is Test, MainnetAddresses {
         _depositSuperUSD_1_1();
         _passTime_1_4();
         _depositSSuperUSD_1_1();
+        _withdraw_1_1();
     }
 
     function _depositUsdc_1_1() internal {
@@ -416,6 +417,40 @@ contract AirVaultTest is Test, MainnetAddresses {
         assertEq(airVault.balanceOf(user1), WeiPerUsdc*85, "updated vault.balanceOf(user1) is incorrect");
         assertEq(airVault.balanceOf(user2), WeiPerUsdc*215, "updated vault.balanceOf(user2) is incorrect");
         assertEq(airVault.balanceOf(user3), mintAmount, "updated vault.balanceOf(user3) is incorrect");
+        assertEq(airVault.getAccountTokenSeconds(user1), (WeiPerUsdc*100*10) + (WeiPerUsdc*75*20) + (WeiPerUsdc*85*50) + (WeiPerUsdc*85*200), "updated vault.getAccountTokenSeconds(user1) is incorrect");
+        assertEq(airVault.getAccountTokenSeconds(user2), (WeiPerUsdc*25*20) + (WeiPerUsdc*15*50) + (WeiPerUsdc*215*200), "updated vault.getAccountTokenSeconds(user2) is incorrect");
+        assertEq(airVault.getAccountTokenSeconds(user3), 0, "updated vault.getAccountTokenSeconds(user2) is incorrect");
+        assertEq(airVault.getNumberOfHolders(), 3, "updated vault.getNumberOfHolders() is incorrect");
+        assertEq(airVault.getHolderAtIndex(0), user1, "updated vault.getHolderAtIndex(0) is incorrect");
+        assertEq(airVault.getHolderAtIndex(1), user2, "updated vault.getHolderAtIndex(1) is incorrect");
+        assertEq(airVault.getHolderAtIndex(2), user3, "updated vault.getHolderAtIndex(2) is incorrect");
+        vm.expectRevert();
+        airVault.getHolderAtIndex(3);
+    }
+
+    function _withdraw_1_1() internal {
+        uint256 totalSupply1 = airVault.totalSupply();
+        uint256 balance13 = airVault.balanceOf(user3);
+        uint256 withdrawAmount = WeiPerUsdc * 20;
+        uint256 totalSupply2 = totalSupply1 - withdrawAmount;
+
+        vm.startPrank(user2);
+        airVault.withdraw(withdrawAmount, user3);
+        vm.stopPrank();
+
+        assertEq(usdc.balanceOf(address(airVault)), 0, "updated usdc.balanceOf(vault) is incorrect");
+        assertEq(superusd.balanceOf(address(airVault)), totalSupply2, "updated superusd.balanceOf(vault) is incorrect");
+        assertEq(ssuperusd.balanceOf(address(airVault)), 0, "updated ssuperusd.balanceOf(vault) is incorrect");
+        assertEq(usdc.balanceOf(user1), WeiPerUsdc*900, "updated usdc.balanceOf(user1) is incorrect");
+        assertEq(usdc.balanceOf(user2), WeiPerUsdc*700, "updated usdc.balanceOf(user2) is incorrect");
+        assertEq(usdc.balanceOf(user3), 0, "updated usdc.balanceOf(user3) is incorrect");
+        assertEq(superusd.balanceOf(user1), 0, "updated superusd.balanceOf(user1) is incorrect");
+        assertEq(superusd.balanceOf(user2), 0, "updated superusd.balanceOf(user2) is incorrect");
+        assertEq(superusd.balanceOf(user3), withdrawAmount, "updated superusd.balanceOf(user3) is incorrect");
+        assertEq(airVault.totalSupply(), totalSupply2, "updated vault.totalSupply() is incorrect");
+        assertEq(airVault.balanceOf(user1), WeiPerUsdc*85, "updated vault.balanceOf(user1) is incorrect");
+        assertEq(airVault.balanceOf(user2), WeiPerUsdc*195, "updated vault.balanceOf(user2) is incorrect");
+        assertEq(airVault.balanceOf(user3), balance13, "updated vault.balanceOf(user3) is incorrect");
         assertEq(airVault.getAccountTokenSeconds(user1), (WeiPerUsdc*100*10) + (WeiPerUsdc*75*20) + (WeiPerUsdc*85*50) + (WeiPerUsdc*85*200), "updated vault.getAccountTokenSeconds(user1) is incorrect");
         assertEq(airVault.getAccountTokenSeconds(user2), (WeiPerUsdc*25*20) + (WeiPerUsdc*15*50) + (WeiPerUsdc*215*200), "updated vault.getAccountTokenSeconds(user2) is incorrect");
         assertEq(airVault.getAccountTokenSeconds(user3), 0, "updated vault.getAccountTokenSeconds(user2) is incorrect");
