@@ -235,30 +235,28 @@ contract WithdrawZapTeller is Ownable2StepWTR, ReentrancyGuard {
         bytes32[] memory allExistingZapWithdrawRequestIds = _existingZapWithdrawRequests.values();
         uint256 allExistingZapWithdrawRequestsLength = allExistingZapWithdrawRequestIds.length;
 
-        // First pass: count how many requests belong to this sender
-        uint256 senderRequestCount = 0;
-        for (uint256 i = 0; i < allExistingZapWithdrawRequestsLength; ) {
-            if (zapWithdraws[allExistingZapWithdrawRequestIds[i]].sender == sender) {
-                senderRequestCount++;
-            }
-            unchecked { ++i; }
-        }
+        // Create arrays with maximum possible size
+        requestIds = new bytes32[](allExistingZapWithdrawRequestsLength);
+        requests = new ZapAtomicRequest[](allExistingZapWithdrawRequestsLength);
 
-        // Initialize arrays with the correct size
-        requestIds = new bytes32[](senderRequestCount);
-        requests = new ZapAtomicRequest[](senderRequestCount);
-
-        // Second pass: populate the arrays with sender's requests
-        uint256 index = 0;
+        // Single pass: populate arrays conditionally
+        uint256 count = 0;
         for (uint256 i = 0; i < allExistingZapWithdrawRequestsLength; ) {
             bytes32 requestId = allExistingZapWithdrawRequestIds[i];
             ZapAtomicRequest memory request = zapWithdraws[requestId];
             if (request.sender == sender) {
-                requestIds[index] = requestId;
-                requests[index] = request;
-                unchecked { ++index; }
+                requestIds[count] = requestId;
+                requests[count] = request;
+                unchecked { ++count; }
             }
             unchecked { ++i; }
+        }
+
+        // Trim arrays to correct length using assembly
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            mstore(requestIds, count)
+            mstore(requests, count)
         }
     }
 
