@@ -61,4 +61,5 @@ contract ContractNames {
     string public constant sSuperUSDZapTellerName = "sSuperUSD Zap Teller V1.0";
     string public constant sSuperUSDSakeZapTellerName = "sSuperUSD Sake Zap Teller V1.0";
 
+    string public constant airVaultName = "AirVault V1.0";
 }
