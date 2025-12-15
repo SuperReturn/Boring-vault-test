@@ -62,6 +62,6 @@ contract ContractNames {
     // zaps
     string public constant sSuperUSDZapTellerName = "sSuperUSD Zap Teller V1.0";
     string public constant sSuperUSDSakeZapTellerName = "sSuperUSD Sake Zap Teller V1.0";
-    string public constant WithdrawZapTellerName = "Withdraw Zap Teller V1.3";
+    string public constant WithdrawZapTellerName = "Withdraw Zap Teller V1.4";
 
 }
