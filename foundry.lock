@@ -1,6 +1,6 @@
 {
-  "lib/LayerZero-v2": {
-    "rev": "ab9b083410b9359285a5756807e1b6145d4711a7"
+  "lib/OAppAuth": {
+    "rev": "5beb4df293c7558520f0d63b38179b8e47a08ef2"
   },
   "lib/forge-std": {
     "rev": "1eea5bae12ae557d589f9f0f0edae2faa47cb262"

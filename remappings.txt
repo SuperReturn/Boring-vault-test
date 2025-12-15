@@ -4,3 +4,4 @@
 ds-test/=lib/forge-std/lib/ds-test/src/
 @openzeppelin/=lib/openzeppelin-contracts/
 @openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
+@layerzerolabs/lz-evm-protocol-v2/=lib/OAppAuth/lib/LayerZero-V2/packages/layerzero-v2/evm/protocol/
