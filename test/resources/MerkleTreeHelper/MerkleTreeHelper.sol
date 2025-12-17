@@ -2640,6 +2640,56 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
         }
     }
 
+    function _addKatanaMorphoLeafs(ManageLeaf[] memory leafs, address receiver, address[] memory tokens) internal {
+        address usdc = getAddress(sourceChain, "USDC");
+
+        for (uint256 i; i < tokens.length; ++i) {
+            if (!tokenToSpenderToApprovalInTree[tokens[i]][usdc]) {
+                unchecked {
+                    leafIndex++;
+                }
+            }
+            leafs[leafIndex] = ManageLeaf(
+                usdc,
+                false,
+                "approve(address,uint256)",
+                new address[](1),
+                string(abi.encodePacked("Approve ",Strings.toHexString(uint256(uint160(tokens[i])), 20), " to Morpho")),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = tokens[i];
+            tokenToSpenderToApprovalInTree[tokens[i]][usdc] = true;
+
+            // deposit
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                tokens[i],
+                false,
+                "deposit(uint256,address)",
+                new address[](1),
+                string(abi.encodePacked("Deposit into ",Strings.toHexString(uint256(uint160(tokens[i])), 20), " Morpho vault")),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = receiver;
+            
+            // withdraw
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                tokens[i],
+                false,
+                "withdraw(uint256,address,address)",
+                new address[](1),
+                string(abi.encodePacked("Withdraw from ",Strings.toHexString(uint256(uint160(tokens[i])), 20), " Morpho vault")),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = receiver;
+        }
+    }
+
     // ========================================= Aura =========================================
 
     function _addAuraLeafs(ManageLeaf[] memory leafs, address auraDeposit) internal {
