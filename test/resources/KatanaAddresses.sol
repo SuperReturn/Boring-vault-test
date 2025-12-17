@@ -18,6 +18,7 @@ contract KatanaAddresses {
 
     ERC20 public USDC = ERC20(0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36); // vbUSDC
     ERC20 public USDAI = ERC20(0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB);
+    ERC20 public KAT = ERC20(0x3ba1fbC4c3aEA775d335b31fb53778f46FD3a330);
 
     address public merklDistributor = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
 
