@@ -57,6 +57,9 @@ contract AirVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable {
     error AddressZero();
     error InsufficientMinted();
 
+    event Deposit(address indexed from, address indexed to, address indexed asset, uint256 depositAmount, uint256 amountMinted);
+    event Withdraw(address indexed from, address indexed to, uint256 amountShares, uint256 amountSSuperUSD);
+
     //============================== CONSTRUCTOR ===============================
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -145,45 +148,26 @@ contract AirVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable {
         if(amountMinted < minimumMint) revert InsufficientMinted();
         // mint the vault token
         _mint(receiver, amountMinted);
-    }
-
-    /// @notice Converts an asset to superusd.
-    /// @param asset The asset to convert.
-    /// @param depositAmount The amount to convert.
-    /// @return superusdAmount The amount of superusd minted.
-    function _convertAssetToSuperUSD(address asset, uint256 depositAmount) internal returns (uint256 superusdAmount) {
-        // check approval of asset to superusd
-        _checkApproval(asset, superusd, depositAmount);
-        // convert asset to superusd
-        superusdAmount = TellerWithMultiAssetSupport(superusdTeller).deposit(ERC20(asset), depositAmount, 0); // will revert if asset not supported
-    }
-
-    /// @notice Converts ssuperusd to superusd.
-    /// @param depositAmount The amount of ssuperusd to convert.
-    /// @return superusdAmount The amount of superusd redeemed.
-    function _convertSSuperUSDToSuperUSD(uint256 depositAmount) internal returns (uint256 superusdAmount) {
-        // check approval of ssuperusd to queue
-        _checkApproval(ssuperusd, ssuperusdAtomicQueue, depositAmount);
-        // call instantWithdraw on sSuperUSD to get superUSD
-        superusdAmount = AtomicQueue(ssuperusdAtomicQueue).instantWithdraw(
-            ERC20(ssuperusd),
-            ERC20(superusd),
-            depositAmount,
-            0,
-            TellerWithMultiAssetSupport(ssuperusdTeller)
-        );
+        // emit event
+        emit Deposit(msg.sender, receiver, asset, depositAmount, amountMinted);
     }
 
     //============================== WITHDRAW ===============================
 
     /// @notice Withdraws from the vault.
-    /// @param amount The amount to withdraw.
-    /// @param receiver The address to receive the assets.
-    function withdraw(uint256 amount, address receiver) external {
+    /// Burns shares from the caller and transfers ssuperusd to the receiver.
+    /// @param amountShares The amount of shares to withdraw.
+    /// @param receiver The address to receive sSuperUSD.
+    /// @return amountSSuperUSD The amount of sSuperUSD transferred.
+    function withdraw(uint256 amountShares, address receiver) external returns (uint256 amountSSuperUSD) {
         // burn shares from msg.sender
-        _burn(msg.sender, amount);
-        // transfer superusd from this contract to receiver
-        SafeERC20.safeTransfer(IERC20(superusd), receiver, amount);
+        _burn(msg.sender, amountShares);
+        // convert superusd to ssuperusd
+        amountSSuperUSD = _convertSuperUSDToSSuperUSD(amountShares);
+        // transfer ssuperusd from this contract to receiver
+        SafeERC20.safeTransfer(IERC20(ssuperusd), receiver, amountSSuperUSD);
+        // emit event
+        emit Withdraw(msg.sender, receiver, amountShares, amountSSuperUSD);
     }
 
     //============================== TOKEN SECONDS ===============================
@@ -291,6 +275,45 @@ contract AirVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable {
         // set name and symbol in storage
         $._name = name_;
         $._symbol = symbol_;
+    }
+
+    //============================== TOKEN CONVERSION FUNCTIONS ===============================
+
+    /// @notice Converts an asset to superusd.
+    /// @param asset The asset to convert.
+    /// @param depositAmount The amount to convert.
+    /// @return superusdAmount The amount of superusd minted.
+    function _convertAssetToSuperUSD(address asset, uint256 depositAmount) internal returns (uint256 superusdAmount) {
+        // check approval of asset to superusd
+        _checkApproval(asset, superusd, depositAmount);
+        // convert asset to superusd
+        superusdAmount = TellerWithMultiAssetSupport(superusdTeller).deposit(ERC20(asset), depositAmount, 0); // will revert if asset not supported
+    }
+
+    /// @notice Converts ssuperusd to superusd.
+    /// @param depositAmount The amount of ssuperusd to convert.
+    /// @return superusdAmount The amount of superusd redeemed.
+    function _convertSSuperUSDToSuperUSD(uint256 depositAmount) internal returns (uint256 superusdAmount) {
+        // check approval of ssuperusd to queue
+        _checkApproval(ssuperusd, ssuperusdAtomicQueue, depositAmount);
+        // call instantWithdraw on sSuperUSD to get superUSD
+        superusdAmount = AtomicQueue(ssuperusdAtomicQueue).instantWithdraw(
+            ERC20(ssuperusd),
+            ERC20(superusd),
+            depositAmount,
+            0,
+            TellerWithMultiAssetSupport(ssuperusdTeller)
+        );
+    }
+
+    /// @notice Converts superusd to ssuperusd.
+    /// @param amountSSuperUSD The amount of SuperUSD to convert.
+    /// @return amountSSuperUSD The amount of sSuperUSD received from the conversion.
+    function _convertSuperUSDToSSuperUSD(uint256 amountSuperUSD) internal returns (uint256 amountSSuperUSD) {
+        // check approval of superusd to ssuperusd
+        _checkApproval(superusd, ssuperusd, amountSuperUSD);
+        // convert superusd to ssuperusd
+        amountSSuperUSD = TellerWithMultiAssetSupport(ssuperusdTeller).deposit(ERC20(superusd), amountSuperUSD, 0);
     }
 
     //============================== HELPER FUNCTIONS ===============================

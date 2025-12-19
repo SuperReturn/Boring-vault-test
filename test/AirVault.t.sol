@@ -43,6 +43,9 @@ contract AirVaultTest is Test, MainnetAddresses {
     uint256 public constant WeiPerUsdc = 1e6; // 6 decimals
     uint256 public constant WeiPerEther = 1e18; // 18 decimals
 
+    event Deposit(address indexed from, address indexed to, address indexed asset, uint256 depositAmount, uint256 amountMinted);
+    event Withdraw(address indexed from, address indexed to, uint256 amountShares, uint256 amountSSuperUSD);
+
     function setUp() external {
         // Setup forked environment.
         string memory rpcKey = "KATANA_RPC_URL";
@@ -215,6 +218,8 @@ contract AirVaultTest is Test, MainnetAddresses {
         _passTime_1_4();
         _depositSSuperUSD_1_1();
         _withdraw_1_1();
+        _testOverWithdraw_1_1();
+        _testOverTransfer_1_1();
     }
 
     function _depositUsdc_1_1() internal {
@@ -222,6 +227,8 @@ contract AirVaultTest is Test, MainnetAddresses {
         uint256 minimumMint = WeiPerUsdc*100;
         vm.startPrank(user1);
         usdc.approve(address(airVault), type(uint256).max);
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(user1, user1, address(usdc), depositAmount, minimumMint);
         airVault.deposit(address(usdc), depositAmount, minimumMint, user1);
         vm.stopPrank();
 
@@ -344,6 +351,8 @@ contract AirVaultTest is Test, MainnetAddresses {
         usdc.approve(address(superusd), type(uint256).max);
         superusdTeller.deposit(ERC20(address(usdc)), WeiPerUsdc*300, WeiPerUsdc*300);
         superusd.approve(address(airVault), type(uint256).max);
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(user2, user2, address(superusd), WeiPerUsdc*200, WeiPerUsdc*200);
         airVault.deposit(address(superusd), WeiPerUsdc*200, WeiPerUsdc*200, user2);
         vm.stopPrank();
 
@@ -397,8 +406,12 @@ contract AirVaultTest is Test, MainnetAddresses {
         //console.log("received ssuperusd    :", ERC20(address(ssuperusd)).balanceOf(user2));
         uint256 ssuperusdBalance1 = ERC20(address(ssuperusd)).balanceOf(user2);
         uint256 depositAmount = WeiPerUsdc*10;
-        airVault.deposit(address(ssuperusd), depositAmount, 0, user3);
+        uint256 expectedMintAmount = 10524860;
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(user2, user3, address(ssuperusd), depositAmount, expectedMintAmount);
+        airVault.deposit(address(ssuperusd), depositAmount, expectedMintAmount, user3);
         uint256 mintAmount = ERC20(address(airVault)).balanceOf(user3);
+        assertEq(mintAmount, expectedMintAmount, "mintAmount is incorrect");
         //console.log("deposited ssuperusd   :", depositAmount);
         //console.log("received katsuperusd  :", mintAmount);
         uint256 totalSupply2 = WeiPerUsdc*300 + mintAmount;
@@ -431,11 +444,18 @@ contract AirVaultTest is Test, MainnetAddresses {
     function _withdraw_1_1() internal {
         uint256 totalSupply1 = airVault.totalSupply();
         uint256 balance13 = airVault.balanceOf(user3);
-        uint256 withdrawAmount = WeiPerUsdc * 20;
-        uint256 totalSupply2 = totalSupply1 - withdrawAmount;
+        uint256 withdrawAmountShares = WeiPerUsdc * 20;
+        uint256 totalSupply2 = totalSupply1 - withdrawAmountShares;
+        uint256 withdrawAmountSSuperUSD = 19002628;
+
+        assertEq(ssuperusd.balanceOf(user1), 0, "start ssuperusd.balanceOf(user1) is incorrect");
+        assertEq(ssuperusd.balanceOf(user2), 85013140, "start ssuperusd.balanceOf(user2) is incorrect");
+        assertEq(ssuperusd.balanceOf(user3), 0, "start ssuperusd.balanceOf(user3) is incorrect");
 
         vm.startPrank(user2);
-        airVault.withdraw(withdrawAmount, user3);
+        vm.expectEmit(true, true, true, true);
+        emit Withdraw(user2, user3, withdrawAmountShares, withdrawAmountSSuperUSD);
+        airVault.withdraw(withdrawAmountShares, user3);
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(address(airVault)), 0, "updated usdc.balanceOf(vault) is incorrect");
@@ -446,7 +466,10 @@ contract AirVaultTest is Test, MainnetAddresses {
         assertEq(usdc.balanceOf(user3), 0, "updated usdc.balanceOf(user3) is incorrect");
         assertEq(superusd.balanceOf(user1), 0, "updated superusd.balanceOf(user1) is incorrect");
         assertEq(superusd.balanceOf(user2), 0, "updated superusd.balanceOf(user2) is incorrect");
-        assertEq(superusd.balanceOf(user3), withdrawAmount, "updated superusd.balanceOf(user3) is incorrect");
+        assertEq(superusd.balanceOf(user3), 0, "updated superusd.balanceOf(user3) is incorrect");
+        assertEq(ssuperusd.balanceOf(user1), 0, "updated ssuperusd.balanceOf(user1) is incorrect");
+        assertEq(ssuperusd.balanceOf(user2), 85013140, "updated ssuperusd.balanceOf(user2) is incorrect");
+        assertEq(ssuperusd.balanceOf(user3), withdrawAmountSSuperUSD, "updated ssuperusd.balanceOf(user3) is incorrect");
         assertEq(airVault.totalSupply(), totalSupply2, "updated vault.totalSupply() is incorrect");
         assertEq(airVault.balanceOf(user1), WeiPerUsdc*85, "updated vault.balanceOf(user1) is incorrect");
         assertEq(airVault.balanceOf(user2), WeiPerUsdc*195, "updated vault.balanceOf(user2) is incorrect");
@@ -461,6 +484,23 @@ contract AirVaultTest is Test, MainnetAddresses {
         vm.expectRevert();
         airVault.getHolderAtIndex(3);
     }
+
+    function _testOverWithdraw_1_1() internal {
+        uint256 bal = airVault.balanceOf(user1);
+        vm.startPrank(user1);
+        vm.expectRevert();
+        airVault.withdraw(bal+1, user1);
+        vm.stopPrank();
+    }
+
+    function _testOverTransfer_1_1() internal {
+        uint256 bal = airVault.balanceOf(user1);
+        vm.startPrank(user1);
+        vm.expectRevert();
+        airVault.transfer(user1, bal+1);
+        vm.stopPrank();
+    }
+
 
     // ========================================= HELPER FUNCTIONS =========================================
 
