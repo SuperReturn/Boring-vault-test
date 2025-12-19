@@ -12,10 +12,10 @@ import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
 /**
- *  source .env && forge script script/DeployKatSuperUSD.s.sol:DeployKatSuperUSDScript --with-gas-price 70000000 --evm-version london --broadcast --etherscan-api-key $KATANA_BOKUTO_SCAN_KEY --verify
+ *  source .env && forge script script/UpgradeKatSuperUSD.s.sol:UpgradeKatSuperUSDScript --with-gas-price 70000000 --evm-version london --broadcast --etherscan-api-key $KATANA_BOKUTO_SCAN_KEY --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployKatSuperUSDScript is Script, ContractNames, KatanaBokutoAddresses {
+contract UpgradeKatSuperUSDScript is Script, ContractNames, KatanaBokutoAddresses {
     uint256 public privateKey;
 
     address public devOwner = 0x8Ab8aEEf444AeE718A275a8325795FE90CF162c4;
@@ -39,7 +39,7 @@ contract DeployKatSuperUSDScript is Script, ContractNames, KatanaBokutoAddresses
     address public airVaultImpl;
 
     address public airVaultExpected = address(0xd6619fbD8F8a02D8eF71B35723d0E7C5C3878f01);
-    address public airVaultImplExpected = address(0x05Af96873Fc2a21d743F136ca643a1295ff8C558);
+    address public airVaultImplExpected = address(0x7DE709F5047431AF87FA09C8ACc3DA021B9929f2);
 
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
@@ -55,6 +55,7 @@ contract DeployKatSuperUSDScript is Script, ContractNames, KatanaBokutoAddresses
         ssuperusdTeller = address(0xa8aA5c00d6c3f7A77FC5769770f6bC7b9244699b);
         ssuperusdAtomicQueue = address(0xd484d2991D168b33cC61e25f80af0145883Bc465);
         superusdRolesAuthority = address(0x0953c2E6c82633CdA982E90A6287f66493c5cF0B);
+        airVault = _getAddressIfDeployed(airVaultName);
         
         console.log("Deployer                :", deployerAddress);
         console.log("SuperUSD                :", superusd);
@@ -89,61 +90,38 @@ contract DeployKatSuperUSDScript is Script, ContractNames, KatanaBokutoAddresses
             console.log("SuperUSD Roles Authority not deployed yet");
             areDependenciesDeployed = false;
         }
+        if(!_isDeployed(airVault)) {
+            console.log("AirVault proxy not deployed yet");
+            areDependenciesDeployed = false;
+        }
         if(!areDependenciesDeployed) {
             console.log("Deploy the dependencies first");
             vm.stopBroadcast();
             return;
         }
 
-        string memory airVaultImplName = string.concat(airVaultName, "-Implementation");
+        string memory airVaultImplName = string.concat(airVaultName, "-Implementation2");
         airVaultImpl = _getAddressIfDeployed(airVaultImplName);
-        airVault = _getAddressIfDeployed(airVaultName);
 
         if(airVaultImpl == address(0)) {
-            console.log("Deploying AirVault implementation");
+            console.log("Deploying AirVault implementation 2");
             airVaultImpl = deployer.deployContract(
                 airVaultImplName,
                 type(AirVault).creationCode,
                 abi.encode(address(superusd), address(ssuperusd), address(superusdTeller), address(ssuperusdTeller), address(ssuperusdAtomicQueue)),
                 0
             );
-            console.log("Deployed AirVault implementation at ", airVaultImpl);
+            console.log("Deployed AirVault implementation 2 at ", airVaultImpl);
             if(airVaultImplExpected != address(0) && airVaultImpl != airVaultImplExpected) {
-                console.log("Incorrect AirVault implementation address. Expected", airVaultImplExpected, "got", airVaultImpl);
-                revert("Incorrect AirVault implementation address");
+                console.log("Incorrect AirVault implementation 2 address. Expected", airVaultImplExpected, "got", airVaultImpl);
+                revert("Incorrect AirVault implementation 2 address");
             }
         }
 
-        if(airVault == address(0)) {
-            console.log("Deploying AirVault proxy");
-            // Prepare initializer data
-            bytes memory initializer = abi.encodeWithSelector(
-                AirVault.initialize.selector,
-                devOwner,  // owner
-                Authority(superusdRolesAuthority),  // authority
-                "katSuperUSD", // name
-                "katSuperUSD",  // symbol
-                6  // decimals
-            );
-
-            // Deploy proxy
-            bytes memory proxyCreationCode = abi.encodePacked(
-                type(ERC1967Proxy).creationCode,
-                abi.encode(airVaultImpl, initializer)
-            );
-            airVault = deployer.deployContract(
-                airVaultName,
-                proxyCreationCode,
-                hex"",
-                0
-            );
-            console.log("Deployed AirVault at ", airVault);
-            if(airVaultExpected != address(0) && airVault != airVaultExpected) {
-                console.log("Incorrect AirVault address. Expected", airVaultExpected, "got", airVault);
-                revert("Incorrect AirVault address");
-            }
-        }
-
+        console.log("Upgrading AirVault proxy");
+        AirVault(airVault).upgradeToAndCall(airVaultImpl, hex"");
+        console.log("Upgraded AirVault proxy");
+        
         vm.stopBroadcast();
     }
 
