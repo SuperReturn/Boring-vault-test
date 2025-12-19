@@ -3478,13 +3478,47 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
             oftAdapter,
             true,
             "send((uint32,bytes32,uint256,uint256,bytes,bytes,bytes),(uint256,uint256),address)",
-            new address[](3),
+            new address[](1),
             string.concat("Bridge ", asset.symbol(), " to LayerZero endpoint: ", vm.toString(endpoint)),
             getAddress(sourceChain, "rawDataDecoderAndSanitizer")
         );
-        leafs[leafIndex].argumentAddresses[0] = address(uint160(endpoint));
-        leafs[leafIndex].argumentAddresses[1] = getAddress(sourceChain, "boringVault");
-        leafs[leafIndex].argumentAddresses[2] = getAddress(sourceChain, "boringVault");
+        leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "boringVault");
+        // leafs[leafIndex].argumentAddresses[1] = getAddress(sourceChain, "boringVault");
+        // leafs[leafIndex].argumentAddresses[2] = getAddress(sourceChain, "boringVault");
+    }
+
+    // ========================================= PUSD =========================================
+    function _addPUSDFunctionLeafs(ManageLeaf[] memory leafs, address recipient, address teller) internal {
+        // Approvals
+        address _usdc = getAddress(sourceChain, "USDC");
+
+        unchecked {
+            leafIndex++;
+        }
+        leafs[leafIndex] = ManageLeaf(
+            _usdc,
+            false,
+            "approve(address,uint256)",
+            new address[](1),
+            "Approve USDC to PUSDTeller",
+            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+        );
+        leafs[leafIndex].argumentAddresses[0] = teller;
+        tokenToSpenderToApprovalInTree[_usdc][teller] = true;   
+
+        // deposit
+        unchecked {
+            leafIndex++;
+        }
+        leafs[leafIndex] = ManageLeaf(
+            teller,
+            false,
+            "deposit(address,uint256,uint256,address,address,(string,uint256,address[],bytes[]))",
+            new address[](1),
+            "Deposit USDC into PUSD Teller",
+            getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+        );
+        leafs[leafIndex].argumentAddresses[0] = recipient;
     }
 
     // ========================================= Compound V3 =========================================

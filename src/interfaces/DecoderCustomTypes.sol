@@ -157,6 +157,39 @@ contract DecoderCustomTypes {
         bool needScale;
     }
 
+    // ========================================= OFT =========================================
+
+    struct SendParam {
+        uint32 dstEid; // Destination endpoint ID.
+        bytes32 to; // Recipient address.
+        uint256 amountLD; // Amount to send in local decimals.
+        uint256 minAmountLD; // Minimum amount to send in local decimals.
+        bytes extraOptions; // Additional options supplied by the caller to be used in the LayerZero message.
+        bytes composeMsg; // The composed message for the send() operation.
+        bytes oftCmd; // The OFT command to be executed, unused in default OFT implementations.
+    }
+
+    struct MessagingFee {
+        uint256 nativeFee;
+        uint256 lzTokenFee;
+    }
+    // ========================================= L1StandardBridge =========================================
+    struct WithdrawalTransaction {
+        uint256 nonce;
+        address sender;
+        address target;
+        uint256 value;
+        uint256 gasLimit;
+        bytes data;
+    }
+
+    struct OutputRootProof {
+        bytes32 version;
+        bytes32 stateRoot;
+        bytes32 messagePasserStorageRoot;
+        bytes32 latestBlockhash;
+    }
+
     enum SwapType {
         NONE,
         KYBERSWAP,

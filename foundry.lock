@@ -1,4 +1,7 @@
 {
+  "lib/OAppAuth": {
+    "rev": "5beb4df293c7558520f0d63b38179b8e47a08ef2"
+  },
   "lib/forge-std": {
     "rev": "1eea5bae12ae557d589f9f0f0edae2faa47cb262"
   },
