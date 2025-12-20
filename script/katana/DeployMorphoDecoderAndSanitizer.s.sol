@@ -6,9 +6,7 @@ import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper
 import {Deployer} from "src/helper/Deployer.sol";
 import {KatanaAddresses} from "test/resources/KatanaAddresses.sol";
 import {ContractNames} from "resources/ContractNames.sol";
-import {SakeDecoderAndSanitizer} from "src/base/DecodersAndSanitizers/Protocols/SakeDecoderAndSanitizer.sol";
-
-// import {BoringDrone} from "src/base/Drones/BoringDrone.sol";
+import {MorphoDecoderAndSanitizer} from "src/base/DecodersAndSanitizers/Protocols/MorphoDecoderAndSanitizer.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -18,9 +16,10 @@ import "forge-std/StdJson.sol";
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
 
-contract DeploySakeDecoderAndSanitizerScript is Script, ContractNames, KatanaAddresses, MerkleTreeHelper {
+contract DeployMorphoDecoderAndSanitizerScript is Script, ContractNames, KatanaAddresses, MerkleTreeHelper {
     uint256 public privateKey;
     Deployer public deployer = Deployer(deployerAddress);
+    //Deployer public bobDeployer = Deployer(0xF3d0672a91Fd56C9ef04C79ec67d60c34c6148a0); 
 
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
@@ -31,12 +30,18 @@ contract DeploySakeDecoderAndSanitizerScript is Script, ContractNames, KatanaAdd
     function run() external {
         bytes memory creationCode; bytes memory constructorArgs;
         vm.startBroadcast(privateKey);
+    
 
-        creationCode = type(SakeDecoderAndSanitizer).creationCode;
+        //creationCode = type(EtherFiLiquidEthDecoderAndSanitizer).creationCode;
+        //constructorArgs = abi.encode(getAddress(sourceChain, "uniswapV3NonFungiblePositionManager"), getAddress(sourceChain, "odosRouterV2"));
+        //deployer.deployContract("EtherFi Liquid ETH Decoder And Sanitizer V0.9", creationCode, constructorArgs, 0);
+
+
+        creationCode = type(MorphoDecoderAndSanitizer).creationCode;
         constructorArgs = abi.encode(
             previoussuperUSD
         );
-        deployer.deployContract(UsdaiSakeDecoderAndSanitizerName, creationCode, constructorArgs, 0);
+        deployer.deployContract(UsdaiMorphoDecoderAndSanitizerName, creationCode, constructorArgs, 0);
 
         vm.stopBroadcast();
     }

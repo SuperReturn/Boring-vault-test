@@ -18,14 +18,16 @@ contract KatanaAddresses {
 
     ERC20 public USDC = ERC20(0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36); // vbUSDC
     ERC20 public USDAI = ERC20(0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB);
-    /*
+    ERC20 public KAT = ERC20(0x3ba1fbC4c3aEA775d335b31fb53778f46FD3a330);
+
     address public merklDistributor = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
 
-    // same as eulerVaults in MerkleTreeHelper.sol
-    address [] public eulerVaults = [
-        0x53AfE3343f322c4189Ab69E0D048efd154259419,
-        0x98281466aBcF48eAAD8c6E22dEdD18A3426A93b4,
-        0xe0a80d35bB6618CBA260120b279d357978c42BCE
+    address[] public morphoVaults = [
+        0xCE2b8e464Fc7b5E58710C24b7e5EBFB6027f29D7, // yearn
+        0xE4248e2105508FcBad3fe95691551d1AF14015f7, // Gauntlet
+        0x61D4F9D3797BA4dA152238c53a6f93Fb665C3c1d, // Steakhouse
+        0x1445A01a57D7B7663CfD7B4EE0a8Ec03B379aabD, // Steakhouse High
+        0x9aF031182fCe8BF0b296145f2e1f1Df5C3feCDE7, // Clearstar
+        0x6a31358E58B8692cE5317181ff3379A5766A7ABA // Clearstar v2
     ];
-    */
 }
