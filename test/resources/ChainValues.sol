@@ -776,7 +776,7 @@ contract ChainValues {
 
         // 1Inch
         values[arbitrum]["AggregationRouterV6"] = 0x111111125421cA6dc452d289314280a0f8842A65.toBytes32();
-        values[arbitrum]["oneInchExecutor"] = 0x8C864D0c8E476Bf9eb9d620C10E1296fb0E2F940.toBytes32();
+        values[arbitrum]["oneInchExecutor"] = 0x990636ecB3FF04d33D92e970d3d588bF5cD8d086.toBytes32();
     }
 
     function _addOptimismValues() private {
