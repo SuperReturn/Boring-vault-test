@@ -50,8 +50,8 @@ contract Strategist1 is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNam
         _addArbitrumMorphoLeafs(leafs, address(vault), morphoVaults);
 
         address[] memory tokens = new address[](2);
-        tokens[0] = MORPHO;
-        tokens[1] = ARB;
+        tokens[0] = ARB;
+        tokens[1] = MORPHO;
 
         setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMerklDecoderAndSanitizerName));
         _addMerklLeafs(leafs, merklDistributor, tokens);
@@ -70,125 +70,127 @@ contract Strategist1 is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNam
 
 
 // Morpho operation
-        setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName));
-        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
-
-        // 3. Generate proofs for the actions you want to execute. Check USDAILeafs.json for the leafs operation order
-        uint256 opsAmt = 2;
-        ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
-        manageLeafs[0] = leafs[36];
-        manageLeafs[1] = leafs[37];
-
-        bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
-
-        // 4. Prepare the action data
-        address[] memory targets = new address[](opsAmt);
-        targets[0] = getAddress(sourceChain, "USDC");
-        targets[1] = morphoVaults[12];
-
-        bytes[] memory targetData = new bytes[](opsAmt);
-
-        targetData[0] = abi.encodeWithSignature(
-            "approve(address,uint256)",
-            morphoVaults[12],
-            type(uint256).max
-        );
-
-        targetData[1] = abi.encodeWithSignature(
-            "deposit(uint256,address)",
-            1 * 1e3,
-            address(vault)
-        );
-
-        address[] memory decodersAndSanitizers = new address[](opsAmt);  
-        decodersAndSanitizers[0] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
-        decodersAndSanitizers[1] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
-
-
-// Merkl operation
-        // setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMerklDecoderAndSanitizerName));
-        // /*
-        // claim params:
-        // https://api.merkl.xyz/v4/users/0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB/rewards?chainId=42161
-        // amount and proofs should be exactly same, otherwise it will revert
-        // */
-        // uint256[] memory amounts = new uint256[](2);
-        // amounts[0] = 22454639252841364;
-        // amounts[1] = 9502479009029716;
-
+        // setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName));
         // bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
         // // 3. Generate proofs for the actions you want to execute. Check USDAILeafs.json for the leafs operation order
-        // uint256 opsAmt = 1;
+        // uint256 opsAmt = 2;
         // ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
-        // manageLeafs[0] = leafs[3 * 12]; // morpho leafs number
+        // manageLeafs[0] = leafs[36];
+        // manageLeafs[1] = leafs[37];
 
         // bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
 
         // // 4. Prepare the action data
         // address[] memory targets = new address[](opsAmt);
-        // targets[0] = merklDistributor;
+        // targets[0] = getAddress(sourceChain, "USDC");
+        // targets[1] = morphoVaults[12];
 
         // bytes[] memory targetData = new bytes[](opsAmt);
 
-        // address[] memory users = new address[](2);
-        // users[0] = address(vault);
-        // users[1] = address(vault);
-
-        // bytes32[][] memory proofs = new bytes32[][](2);
-
-        // proofs[0] = new bytes32[](19);
-        // proofs[0][0] = 0xbc6d8e10a9352366ddd02aa2f1c8a4a0edc6152be29d5640edce7e0089b735cb;
-        // proofs[0][1] = 0x83ebac81d4eb71e83fae2b1e77b3788a445cb11793fa30a224d70f9d7eef68a4;
-        // proofs[0][2] = 0x15afff639982941b67dfe259d05a674a945977a468e76e5cd376db246d0d53fd;
-        // proofs[0][3] = 0x6499b8245e0f9443295240c24fd5712d04e76b82aa0ed0c84d6523ed6a5445c6;
-        // proofs[0][4] = 0x6631cef8a810bfad97df3a19888cfd660533d5f2303879ca0350ff864008142c;
-        // proofs[0][5] = 0xc156d76f3f9920f50c4ce4a2f4af694e660fb77c496b0f3317392ea2ba560118;
-        // proofs[0][6] = 0x43edcf0c571fb726fb2029ddf7f37902e25e6a6ef6e909a60802cb4a9103c315;
-        // proofs[0][7] = 0xbc2cfebc68cd7751f62894a553b07ca248a74ba0cc184fe1710ce16c2b27b5c3;
-        // proofs[0][8] = 0x3e671f42b939287c70fcca35bf3f33c9376472b3e35cb52a086ee9d4188825c8;
-        // proofs[0][9] = 0xf3bc4a9b78cd4de909101159c7cd47147ea8e59aecf49bca6a8016d32723b149;
-        // proofs[0][10] = 0x3a40593e5b7e514b8b27fd8aafe3eaf4f54f0734aecfb2fe4d15305d1305c48d;
-        // proofs[0][11] = 0xa44b4dc24ea15208d69cce8b4ddc8c37d6e7f7b07393f9fa02620d942e44eb78;
-        // proofs[0][12] = 0x8f5fe885ef38f88d33431cd95daf8dffb281807c9afc85055491035dddd5133b;
-        // proofs[0][13] = 0x91f5d14a36ac00e15615c57d49cbc63aa024a02304d026595f7dbc9f13f1db63;
-        // proofs[0][14] = 0xc6d9252a5807d8d0ee7678e44d8db4cbf0ba8a2376488be8fb7e8768fc56197a;
-        // proofs[0][15] = 0xa050de81c1cf484b1c72479420592c2d3935e83e9f42356c28689d02cc87e812;
-        // proofs[0][16] = 0x6c5efb53f20502a04ab86b92970957c866d5e9216ca7f624f92d71ff9b8b19a4;
-        // proofs[0][17] = 0xcee778cdb50ed8c13b5aab37526f95e70f92233e7ead677915f823c28d8bd373;
-        // proofs[0][18] = 0x78f2743dea6e19659bb024d686c383f15c3727d1c51658e92130dd0cf671a7af;
-
-        // proofs[1] = new bytes32[](19);
-        // proofs[1][0] = 0xcfa4e590f8b41e94148a3ea213797cc00859f138fc4d93671e8d7c7cef111114;
-        // proofs[1][1] = 0xd2e32a415f3ac117bc8e9ddb6395ad2ad16af58b07b7f2203d8096f7c1b8691c;
-        // proofs[1][2] = 0x9fc13704e08335f17cfc33a47175be82313c0448cba1a54be4bdf5cd6b503af5;
-        // proofs[1][3] = 0x9ad49ab84e41c04b4ea63ac3683d8a6f13397f82824dc9931fe27e08e653988c;
-        // proofs[1][4] = 0xcdc3dbd4ea96fd90976b4c450c53e173425b7167787050a1e589a3ebb1678678;
-        // proofs[1][5] = 0x7144d02af1710ffa3d4da6d8f23663acf8ecdcd95e6eb38fe7bbaffe8600ca0a;
-        // proofs[1][6] = 0x0b24ca6026e0d1405d0aeff104f4975c6f11b3813fdb2cce2287d14b6d77053a;
-        // proofs[1][7] = 0x01bd77ecce793dcd2ce6bb117365bb7c55172e2d67091a64179252fc581b1a77;
-        // proofs[1][8] = 0xe23f90ef3143a5cd9aa3c50761bc16505c6e08ba4b59960c9e6e3213e83c1068;
-        // proofs[1][9] = 0xaf22f6ffe79689942f5644c6784b3918e680f822057c07c6191c5c1415e0f48f;
-        // proofs[1][10] = 0x78347828389280ea35a855d409ed36196e4fc5450bba921803aa31ace182595f;
-        // proofs[1][11] = 0x6371a2d1d9a04092b761c137e2caca24d4cae14f6f5372165013294463bbdf3f;
-        // proofs[1][12] = 0x511b0edca94be8a716213f6a2d2321999c92f306b4679d68996e7343cdd49ba1;
-        // proofs[1][13] = 0xff33935edf5cc062f010828d5994aeb15b4079928945ba517acd40e0016d5b99;
-        // proofs[1][14] = 0x97eedd4b6586fce3f902918b1e11f5f26c2cd14c47f78375f08cc012d07db6c5;
-        // proofs[1][15] = 0x2940e3f48624d40809bd24565d50980ddfe78de5f14e9bd17905c562339f8099;
-        // proofs[1][16] = 0x0fc01a2673a70916ad5efb78c800b6f371f1f7f91fabad479f67290ae6f143a1;
-        // proofs[1][17] = 0xcee778cdb50ed8c13b5aab37526f95e70f92233e7ead677915f823c28d8bd373;
-        // proofs[1][18] = 0x78f2743dea6e19659bb024d686c383f15c3727d1c51658e92130dd0cf671a7af;
-
         // targetData[0] = abi.encodeWithSignature(
-        //     "claim(address[],address[],uint256[],bytes32[][])",
-        //     users,
-        //     tokens,
-        //     amounts,
-        //     proofs
+        //     "approve(address,uint256)",
+        //     morphoVaults[12],
+        //     type(uint256).max
+        // );
+
+        // targetData[1] = abi.encodeWithSignature(
+        //     "deposit(uint256,address)",
+        //     1 * 1e3,
+        //     address(vault)
         // );
 
         // address[] memory decodersAndSanitizers = new address[](opsAmt);  
-        // decodersAndSanitizers[0] = deployer.getAddress(UsdaiMerklDecoderAndSanitizerName);
+        // decodersAndSanitizers[0] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
+        // decodersAndSanitizers[1] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
+
+
+// Merkl operation
+        setAddress(true, arbitrum, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMerklDecoderAndSanitizerName));
+        /*
+        claim params:
+        https://api.merkl.xyz/v4/users/0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB/rewards?chainId=42161
+        amount and proofs should be exactly same, otherwise it will revert
+        */
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 10959490022562288368560;
+        amounts[1] = 1362570265618372135400;
+
+        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
+
+        // 3. Generate proofs for the actions you want to execute. Check USDAILeafs.json for the leafs operation order
+        uint256 opsAmt = 1;
+        ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
+        manageLeafs[0] = leafs[3 * 13]; // morpho leafs number
+
+        bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+
+        // 4. Prepare the action data
+        address[] memory targets = new address[](opsAmt);
+        targets[0] = merklDistributor;
+
+        bytes[] memory targetData = new bytes[](opsAmt);
+
+        address[] memory users = new address[](2);
+        users[0] = address(vault);
+        users[1] = address(vault);
+
+        bytes32[][] memory proofs = new bytes32[][](2);
+
+        proofs[0] = new bytes32[](20);
+        proofs[0][0] = 0x05f7cfd47755d996612cb9078a7896237237d3e3c60b0756112a533d6fc8ea2a;
+        proofs[0][1] = 0x78f92f90e05d6e367eec342ab274e7974485ca953334e00d1d8822d335939b97;
+        proofs[0][2] = 0xda373c52e4792b426104b67e41d344352c1cb6f2a61d169ffc05184ee58b4481;
+        proofs[0][3] = 0xb440fdfa8d3bc5eb860b459868f903a8a3e687684bb0423d812a8d7a4b57418c;
+        proofs[0][4] = 0xfecd055f13b08942641f0857fce321028eab0aa1ca105ec8a27b49ef0398ac04;
+        proofs[0][5] = 0xf23c01e93aa430a3ea3fd019118bd62bfa7cdd9004333f7ecfdab54502348b6a;
+        proofs[0][6] = 0xa5d7b963f4dc12ef96b08ef3eba6ee58856ff00a7f099fd3071bdd1ceedaebe8;
+        proofs[0][7] = 0x4a8d9593b237ef45f8a7e5d6059043a7be401a99c97dfb49b5213a03a124466a;
+        proofs[0][8] = 0xb7b06a01cba010d26238150e4bb5e976448f5ae2aacfe4098c9fae8092fbc1ef;
+        proofs[0][9] = 0x7cc4b86043bbb41200019c3b1d82dd2f6d63f51b3ce164daef99544cd2173727;
+        proofs[0][10] = 0x1d3c2da5e28934560fd698f081fcf792a5af8b6643283a6ee24633b294fbfc64;
+        proofs[0][11] = 0x5b5e6f24b180e15545d6269aa9cfd078cd5c5cb41d00f1f2ba01e273396eba7b;
+        proofs[0][12] = 0x5b585a9ab5afde4854b9d75c8bd9197f926b43d758b652eddda97d295a2dcb5d;
+        proofs[0][13] = 0x04aea4353e2ee9378d9e13d76548fa4388551774ab30830de2ee920692137eac;
+        proofs[0][14] = 0xfb84c651d62539af15825b7d4cdbe9c03259cab401d7cdaa00ddfbd0312b58bc;
+        proofs[0][15] = 0x3d22b67ed6afa91e31f72a752e710a9232504a5c681e04f23861e0be1f64876f;
+        proofs[0][16] = 0xecf08862977dcbaea8675b23758a42004c5577197b1408ec539f5f78cdd55d23;
+        proofs[0][17] = 0xc4c14b90d71b641a856a675d7676cc04f11eb41c7bf82d9cee5e6e99b7e72e88;
+        proofs[0][18] = 0xd95bd460add9bda946da0fe9b7bc01ab2fde06c375d2c8086b52c1b7f17f9d1e;
+        proofs[0][19] = 0xfa03c3f66ee0fe282c11b6a9f72c283ed093946bbaf802132220df2c6e3dd8f0;
+
+        proofs[1] = new bytes32[](20);
+        proofs[1][0] = 0x8def68e3149229019f0fa1304c1e53c18ee50b7ec44f553d474ae48fa3df9259;
+        proofs[1][1] = 0x7eb0d78187050f30342dba46f7f501f38a3f4eea50ba1c6ac6b5c6d0104faf1b;
+        proofs[1][2] = 0x38487e3dc7ca891afc2105eb65f24f4c6da2cc56e6bff61aee1d0959f1e34bc2;
+        proofs[1][3] = 0x1e191a36e0b5dad20f33a81e66e0c745e5e1f6bc1cc9cddb82e0c379e251c48d;
+        proofs[1][4] = 0xc9d539a02bd668dbb708b122701d62eddec0ef7a83335309f42c1ed90b7b1625;
+        proofs[1][5] = 0xeb746c684db88834abf0b4dddeb61fd3a1b6fd8eef9b2946f7ef351c141a8680;
+        proofs[1][6] = 0x8712febe969414bab02ca60625d8aa133ec3c91905f4a59d4e33bcd69439cc72;
+        proofs[1][7] = 0x0f383ad1b5d2604c1d1aa34c179e63546a137fb34e181dcf4314b02b44126970;
+        proofs[1][8] = 0x9f44274c7aef266f371ec79f5a8878d114b0b243e6c1187389596a41b43adc7c;
+        proofs[1][9] = 0x9bad01975612b36e3d17a4e671fec9587bf2ff9c2f20fc6cf23117fae9f312c6;
+        proofs[1][10] = 0xea26647104b5684e5c2403d2d8f05bde7db25099ef377db6d4027b528251cc10;
+        proofs[1][11] = 0xfe3500dde2bed00296463b6d13ebd12f344d8faacc36c174cd41534b12514fc9;
+        proofs[1][12] = 0x65cad962aa0a887a90e602f03e6762c1e64fb993ece0f41ac50e120d11ad822b;
+        proofs[1][13] = 0x3ec4669cb79b597ccb2281375c438276fe30ce254e15b896fc842292769091a4;
+        proofs[1][14] = 0x77e3bd837da9f0428f248a69c550970c47ae97270fb2742789e6b6c389c23814;
+        proofs[1][15] = 0xe90336b6923bd7a8831b54071bb6e78cbccc5bf08ae8e787f51a5eeb48117cb9;
+        proofs[1][16] = 0x64757d55d0504f7009041bfd6489ff067370f079995a34d41f9bbde8e1dd585f;
+        proofs[1][17] = 0xbc31cce579e57d1ff23e47ab6fb16bcdc906264f1af379022127878e0625dd29;
+        proofs[1][18] = 0x112c8fef136df58820b25561114a16b0d1ad0f916d7afb09052eac92c2b0b18a;
+        proofs[1][19] = 0xfa03c3f66ee0fe282c11b6a9f72c283ed093946bbaf802132220df2c6e3dd8f0;
+
+        targetData[0] = abi.encodeWithSignature(
+            "claim(address[],address[],uint256[],bytes32[][])",
+            users,
+            tokens,
+            amounts,
+            proofs
+        );
+
+        address[] memory decodersAndSanitizers = new address[](opsAmt);  
+        decodersAndSanitizers[0] = deployer.getAddress(UsdaiMerklDecoderAndSanitizerName);
 
 
 
@@ -295,28 +297,28 @@ contract Strategist1 is Script, ArbitrumAddresses, MerkleTreeHelper, ContractNam
 
 
 
-        // uint256[] memory values = new uint256[](opsAmt);
+        uint256[] memory values = new uint256[](opsAmt);
 
         // extra
-        string memory filePath = "./leafs/Strategist1ArbitrumLeafs.json";
+        // string memory filePath = "./leafs/Strategist1ArbitrumLeafs.json";
         bytes32 merkleRoot = manageTree[manageTree.length - 1][0];
 
-        _generateLeafs(filePath, leafs, merkleRoot, manageTree);
+        _generateLeafs("./leafs/Strategist1ArbitrumLeafs.json", leafs, merkleRoot, manageTree);
 
-        manager.setManageRoot(0x28d2e2759dCB5CFda1c868Fee714B194c25a8dCB, merkleRoot);
+        manager.setManageRoot(vm.addr(vm.envUint("ARBITRUM_STRATEGIST")), merkleRoot);
 
         vm.stopBroadcast();
-        // vm.startBroadcast(vm.envUint("ARBITRUM_STRATEGIST"));
+        vm.startBroadcast(vm.envUint("ARBITRUM_STRATEGIST"));
 
-        // // 5. Execute the actions through the manager
-        // manager.manageVaultWithMerkleVerification(
-        //     manageProofs,
-        //     decodersAndSanitizers,
-        //     targets,
-        //     targetData,
-        //     values
-        // );
+        // 5. Execute the actions through the manager
+        manager.manageVaultWithMerkleVerification(
+            manageProofs,
+            decodersAndSanitizers,
+            targets,
+            targetData,
+            values
+        );
 
-        // vm.stopBroadcast();
+        vm.stopBroadcast();
     }
 }
