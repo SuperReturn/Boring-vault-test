@@ -35,9 +35,9 @@ contract DeployLayerZeroTellerScript is Script, ContractNames, SoneiumAddresses,
         vm.createSelectFork("soneium");
         setSourceChainName(soneium);
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
-        boringVault = previoussuperUSD;
-        accountant = deployer.getAddress(UsdaiVaultAccountantName);
-        rolesAuthority = RolesAuthority(deployer.getAddress(UsdaiVaultRolesAuthorityName));
+        boringVault = previoussSuperUSD;
+        accountant = deployer.getAddress(sUsdaiVaultAccountantName);
+        rolesAuthority = RolesAuthority(deployer.getAddress(sUsdaiVaultRolesAuthorityName));
     }
 
     function run() external {
@@ -45,17 +45,15 @@ contract DeployLayerZeroTellerScript is Script, ContractNames, SoneiumAddresses,
         bytes memory constructorArgs;
         vm.startBroadcast(privateKey);
 
-        // creationCode = type(LayerZeroTeller).creationCode;
-        // constructorArgs = abi.encode(dev1Address, boringVault, accountant, weth, lzEndPoint, dev1Address, address(0));
+        creationCode = type(LayerZeroTeller).creationCode;
+        constructorArgs = abi.encode(dev1Address, boringVault, accountant, weth, lzEndPoint, dev1Address, address(0));
         layerZeroTeller = LayerZeroTeller(
-            0x9c75926BBfAAf2de125438a75269541218211a5F
+            deployer.deployContract(sUsdaiLayerZeroTellerName, creationCode, constructorArgs, 0)
         );
-        // layerZeroTeller.setAuthority(rolesAuthority);
+        layerZeroTeller.setAuthority(rolesAuthority);
         // rolesAuthority.setUserRole(address(layerZeroTeller), MINTER_ROLE, true);
         // rolesAuthority.setUserRole(address(layerZeroTeller), BURNER_ROLE, true);
-        // layerZeroTeller.setChainGasLimit(layerZeroPlumeEndpointId, 1000000);
-        // layerZeroTeller.setChainGasLimit(layerZeroMainnetEndpointId, 1000000);
-
+        layerZeroTeller.setChainGasLimit(layerZeroMainnetEndpointId, 1000000);
         layerZeroTeller.setChainGasLimit(layerZeroArbitrumEndpointId, 1000000);
 
         vm.stopBroadcast();

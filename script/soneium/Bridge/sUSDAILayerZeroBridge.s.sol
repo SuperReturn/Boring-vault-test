@@ -19,11 +19,11 @@ import {console} from "forge-std/console.sol";
  * @notice This script demonstrates how to deposit USDC and ASTR into the USDAI vault on Minato
  * @dev Run with: forge script script/USDAIIntegrationTest/Deposit.sol --rpc-url $MINATO_RPC_URL
  */
-contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, MerkleTreeHelper {
+contract SUSDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, MerkleTreeHelper {
     Deployer public deployer;
     BoringVault vault;
     address public sourceTellerAddress;
-    address public destinationTellerAddress = address(0x9c75926BBfAAf2de125438a75269541218211a5F);
+    address public destinationTellerAddress = address(0xB8cbCB5082e38F78f32439818BFd8bB7770caD2E);
     ILayerZeroEndpointV2 endpoint;
     LayerZeroTeller sourceTeller;
     LayerZeroTeller destinationTeller;
@@ -43,10 +43,10 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
         
         endpoint = ILayerZeroEndpointV2(0x4bCb6A963a9563C33569D7A512D35754221F3A19);
         vault = BoringVault(payable(previoussSuperUSD));
-        sourceTellerAddress = deployer.getAddress(UsdaiLayerZeroTellerName);
+        sourceTellerAddress = deployer.getAddress(sUsdaiLayerZeroTellerName);
         sourceTeller = LayerZeroTeller(sourceTellerAddress);
-        accountant = AccountantWithRateProviders(deployer.getAddress(UsdaiVaultAccountantName));
-        rolesAuthority = RolesAuthority(deployer.getAddress(UsdaiVaultRolesAuthorityName));
+        accountant = AccountantWithRateProviders(deployer.getAddress(sUsdaiVaultAccountantName));
+        rolesAuthority = RolesAuthority(deployer.getAddress(sUsdaiVaultRolesAuthorityName));
     }
 
     function run() public {
@@ -76,7 +76,7 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
         uint256 fee = sourceTeller.previewFee(uint96(sharesToBridge), vm.addr(privateKey), abi.encode(layerZeroMainnetEndpointId), NATIVE_ERC20);
 
         console.log("fee", fee);
-        sourceTeller.bridge{value: fee}(uint96(sharesToBridge), vm.addr(privateKey), abi.encode(layerZeroMainnetEndpointId), NATIVE_ERC20, expectedFee);
+        // sourceTeller.bridge{value: fee}(uint96(sharesToBridge), vm.addr(privateKey), abi.encode(layerZeroArbitrumEndpointId), NATIVE_ERC20, expectedFee);
         
         // uint8 OWNER_ROLE = 1;
         // rolesAuthority.setRoleCapability(
@@ -85,10 +85,10 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
 
         // sourceTeller.updateAssetData(USDC, true, true, 0);
 
-        // USDC.approve(address(vault), sharesToBridge);
+        USDAI.approve(address(vault), sharesToBridge);
 
         sourceTeller.depositAndBridge{value: fee}(
-            USDC,                    
+            USDAI,                    
             sharesToBridge,                   // Amount to deposit
             0,                              // Minimum shares to receive (0 for no minimum)
             vm.addr(privateKey),            // Address to receive shares on destination chain
