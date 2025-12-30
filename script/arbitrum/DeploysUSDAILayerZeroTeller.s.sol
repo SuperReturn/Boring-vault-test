@@ -5,7 +5,7 @@ import {Deployer} from "src/helper/Deployer.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 // import {MainnetAddresses} from "test/resources/MainnetAddresses.sol";
-import {SoneiumAddresses} from "test/resources/SoneiumAddresses.sol";
+import {ArbitrumAddresses} from "test/resources/ArbitrumAddresses.sol";
 import {LayerZeroTeller} from
     "src/base/Roles/CrossChain/Bridges/LayerZero/LayerZeroTeller.sol";
 import "forge-std/Script.sol";
@@ -16,47 +16,48 @@ import {console} from "forge-std/console.sol";
  *  source .env && forge script script/DeployLayerZeroTeller.s.sol:DeployLayerZeroTellerScript --with-gas-price 15000000000 --broadcast --verify
  * @dev Optionally can change `--with-gas-price` to something more reasonable
  */
-contract DeployLayerZeroTellerScript is Script, ContractNames, SoneiumAddresses, MerkleTreeHelper {
+contract DeployLayerZeroTellerScript is Script, ContractNames, ArbitrumAddresses, MerkleTreeHelper {
     uint256 public privateKey;
 
     // Contracts to deploy
     RolesAuthority public rolesAuthority;
     Deployer public deployer;
     LayerZeroTeller public layerZeroTeller;
-    address internal weth = 0x4200000000000000000000000000000000000006;
+    address internal weth = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
     address internal boringVault; 
     address internal accountant;
-    address internal lzEndPoint = 0x4bCb6A963a9563C33569D7A512D35754221F3A19;
+    address internal lzEndPoint = 0x1a44076050125825900e736c501f859c50fE728c;
     uint8 public constant MINTER_ROLE = 2;
     uint8 public constant BURNER_ROLE = 3;
 
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
-        vm.createSelectFork("soneium");
-        setSourceChainName(soneium);
+        vm.createSelectFork("arbitrum");
+        setSourceChainName(arbitrum);
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
-        boringVault = previoussuperUSD;
-        accountant = deployer.getAddress(UsdaiVaultAccountantName);
-        rolesAuthority = RolesAuthority(deployer.getAddress(UsdaiVaultRolesAuthorityName));
+        boringVault = previoussSuperUSD;
+        accountant = deployer.getAddress(sUsdaiVaultAccountantName);
+        rolesAuthority = RolesAuthority(deployer.getAddress(sUsdaiVaultRolesAuthorityName));
     }
 
     function run() external {
         bytes memory creationCode;
         bytes memory constructorArgs;
         vm.startBroadcast(privateKey);
+        uint256 verifyAddresses = 2; // 1 to verify SuperUSD addresses, 2 to verify sSuperUSD addresses, 0 for neither
+        // note these addresses will be different because weth is different
 
-        // creationCode = type(LayerZeroTeller).creationCode;
-        // constructorArgs = abi.encode(dev1Address, boringVault, accountant, weth, lzEndPoint, dev1Address, address(0));
+        creationCode = type(LayerZeroTeller).creationCode;
+        constructorArgs = abi.encode(dev1Address, boringVault, accountant, weth, lzEndPoint, dev1Address, address(0));
         layerZeroTeller = LayerZeroTeller(
-            0x9c75926BBfAAf2de125438a75269541218211a5F
+            deployer.deployContract(sUsdaiLayerZeroTellerName, creationCode, constructorArgs, 0)
         );
-        // layerZeroTeller.setAuthority(rolesAuthority);
+ 
+        layerZeroTeller.setAuthority(rolesAuthority);
         // rolesAuthority.setUserRole(address(layerZeroTeller), MINTER_ROLE, true);
         // rolesAuthority.setUserRole(address(layerZeroTeller), BURNER_ROLE, true);
-        // layerZeroTeller.setChainGasLimit(layerZeroPlumeEndpointId, 1000000);
-        // layerZeroTeller.setChainGasLimit(layerZeroMainnetEndpointId, 1000000);
-
-        layerZeroTeller.setChainGasLimit(layerZeroArbitrumEndpointId, 1000000);
+        layerZeroTeller.setChainGasLimit(layerZeroSoneiumEndpointId, 1000000);
+        layerZeroTeller.setChainGasLimit(layerZeroMainnetEndpointId, 1000000);
 
         vm.stopBroadcast();
     }

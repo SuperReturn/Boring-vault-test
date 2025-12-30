@@ -23,7 +23,7 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
     Deployer public deployer;
     BoringVault vault;
     address public sourceTellerAddress;
-    address public destinationTellerAddress = address(0x9c75926BBfAAf2de125438a75269541218211a5F);
+    address public destinationTellerAddress = address(0x91c6Ea9Cdb919523Fd4B3027db90EeB0A9f9D66C);
     ILayerZeroEndpointV2 endpoint;
     LayerZeroTeller sourceTeller;
     LayerZeroTeller destinationTeller;
@@ -42,7 +42,7 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         endpoint = ILayerZeroEndpointV2(0x4bCb6A963a9563C33569D7A512D35754221F3A19);
-        vault = BoringVault(payable(previoussSuperUSD));
+        vault = BoringVault(payable(deployer.getAddress(UsdaiVaultName)));
         sourceTellerAddress = deployer.getAddress(UsdaiLayerZeroTellerName);
         sourceTeller = LayerZeroTeller(sourceTellerAddress);
         accountant = AccountantWithRateProviders(deployer.getAddress(UsdaiVaultAccountantName));
@@ -55,11 +55,8 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
 
         // bridge setup
         // sourceTeller.addChain(layerZeroMainnetEndpointId, true, true, destinationTellerAddress, 1000000);
-        // sourceTeller.addChain(layerZeroArbitrumEndpointId, true, true, destinationTellerAddress, 1000000);
         // sourceTeller.allowMessagesFromChain(layerZeroMainnetEndpointId, destinationTellerAddress);
         // sourceTeller.allowMessagesToChain(layerZeroMainnetEndpointId, destinationTellerAddress, 1000000);
-        // sourceTeller.allowMessagesFromChain(layerZeroArbitrumEndpointId, destinationTellerAddress);
-        // sourceTeller.allowMessagesToChain(layerZeroArbitrumEndpointId, destinationTellerAddress, 1000000);
 
         // sourceTeller.setAuthority(rolesAuthority);
         // rolesAuthority.setUserRole(address(sourceTeller), MINTER_ROLE, true);
@@ -75,17 +72,17 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
 
         uint256 fee = sourceTeller.previewFee(uint96(sharesToBridge), vm.addr(privateKey), abi.encode(layerZeroMainnetEndpointId), NATIVE_ERC20);
 
-        console.log("fee", fee);
-        sourceTeller.bridge{value: fee}(uint96(sharesToBridge), vm.addr(privateKey), abi.encode(layerZeroMainnetEndpointId), NATIVE_ERC20, expectedFee);
+        // console.log("fee", fee);
+        // sourceTeller.bridge{value: fee}(uint96(sharesToBridge), vm.addr(privateKey), abi.encode(layerZeroMainnetEndpointId), NATIVE_ERC20, expectedFee);
         
-        // uint8 OWNER_ROLE = 1;
-        // rolesAuthority.setRoleCapability(
-        //     OWNER_ROLE, address(sourceTeller), sourceTeller.updateAssetData.selector, true
-        // );
+        uint8 OWNER_ROLE = 1;
+        rolesAuthority.setRoleCapability(
+            OWNER_ROLE, address(sourceTeller), sourceTeller.updateAssetData.selector, true
+        );
 
-        // sourceTeller.updateAssetData(USDC, true, true, 0);
+        sourceTeller.updateAssetData(USDC, true, true, 0);
 
-        // USDC.approve(address(vault), sharesToBridge);
+        USDC.approve(address(vault), sharesToBridge);
 
         sourceTeller.depositAndBridge{value: fee}(
             USDC,                    

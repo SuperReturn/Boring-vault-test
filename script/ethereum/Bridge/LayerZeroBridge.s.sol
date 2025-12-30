@@ -3,11 +3,10 @@ pragma solidity 0.8.21;
 
 import "forge-std/Script.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
-import { ILayerZeroEndpointV2 } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {BoringVault} from "src/base/BoringVault.sol";
 import {LayerZeroTeller} from "src/base/Roles/CrossChain/Bridges/LayerZero/LayerZeroTeller.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {SoneiumAddresses} from "test/resources/SoneiumAddresses.sol";
+import {EthereumAddresses} from "test/resources/EthereumAddresses.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
@@ -19,12 +18,11 @@ import {console} from "forge-std/console.sol";
  * @notice This script demonstrates how to deposit USDC and ASTR into the USDAI vault on Minato
  * @dev Run with: forge script script/USDAIIntegrationTest/Deposit.sol --rpc-url $MINATO_RPC_URL
  */
-contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, MerkleTreeHelper {
+contract USDAILayerZeroBridgeScript is Script, EthereumAddresses, ContractNames, MerkleTreeHelper {
     Deployer public deployer;
     BoringVault vault;
     address public sourceTellerAddress;
     address public destinationTellerAddress = address(0x9c75926BBfAAf2de125438a75269541218211a5F);
-    ILayerZeroEndpointV2 endpoint;
     LayerZeroTeller sourceTeller;
     LayerZeroTeller destinationTeller;
     AccountantWithRateProviders accountant;
@@ -37,12 +35,11 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
     uint8 public constant BURNER_ROLE = 3;
 
     function setUp() public {
-        vm.createSelectFork("soneium");
-        setSourceChainName("soneium");
+        vm.createSelectFork("mainnet");
+        setSourceChainName("mainnet");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
-        endpoint = ILayerZeroEndpointV2(0x4bCb6A963a9563C33569D7A512D35754221F3A19);
-        vault = BoringVault(payable(previoussSuperUSD));
+        vault = BoringVault(payable(previoussuperUSD));
         sourceTellerAddress = deployer.getAddress(UsdaiLayerZeroTellerName);
         sourceTeller = LayerZeroTeller(sourceTellerAddress);
         accountant = AccountantWithRateProviders(deployer.getAddress(UsdaiVaultAccountantName));
@@ -54,12 +51,9 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
         vm.startBroadcast(privateKey);
 
         // bridge setup
-        // sourceTeller.addChain(layerZeroMainnetEndpointId, true, true, destinationTellerAddress, 1000000);
-        // sourceTeller.addChain(layerZeroArbitrumEndpointId, true, true, destinationTellerAddress, 1000000);
-        // sourceTeller.allowMessagesFromChain(layerZeroMainnetEndpointId, destinationTellerAddress);
-        // sourceTeller.allowMessagesToChain(layerZeroMainnetEndpointId, destinationTellerAddress, 1000000);
-        // sourceTeller.allowMessagesFromChain(layerZeroArbitrumEndpointId, destinationTellerAddress);
-        // sourceTeller.allowMessagesToChain(layerZeroArbitrumEndpointId, destinationTellerAddress, 1000000);
+        sourceTeller.addChain(layerZeroSoneiumEndpointId, true, true, destinationTellerAddress, 1000000);
+        sourceTeller.allowMessagesFromChain(layerZeroSoneiumEndpointId, destinationTellerAddress);
+        sourceTeller.allowMessagesToChain(layerZeroSoneiumEndpointId, destinationTellerAddress, 1000000);
 
         // sourceTeller.setAuthority(rolesAuthority);
         // rolesAuthority.setUserRole(address(sourceTeller), MINTER_ROLE, true);
@@ -70,14 +64,11 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
         // rolesAuthority.setPublicCapability(
         //     address(sourceTeller), sourceTeller.depositAndBridge.selector, true
         // );
+        // sourceTeller.setChainGasLimit(layerZeroSoneiumEndpointId, 100000);
+        // uint256 fee = sourceTeller.previewFee(uint96(sharesToBridge), vm.addr(privateKey), abi.encode(layerZeroSoneiumEndpointId), NATIVE_ERC20);
+        // console.log("fee", fee);
+        // sourceTeller.bridge{value: fee}(uint96(sharesToBridge), vm.addr(privateKey), abi.encode(layerZeroSoneiumEndpointId), NATIVE_ERC20, expectedFee);
 
-        // sourceTeller.setChainGasLimit(layerZeroMainnetEndpointId, 100000);
-
-        uint256 fee = sourceTeller.previewFee(uint96(sharesToBridge), vm.addr(privateKey), abi.encode(layerZeroMainnetEndpointId), NATIVE_ERC20);
-
-        console.log("fee", fee);
-        sourceTeller.bridge{value: fee}(uint96(sharesToBridge), vm.addr(privateKey), abi.encode(layerZeroMainnetEndpointId), NATIVE_ERC20, expectedFee);
-        
         // uint8 OWNER_ROLE = 1;
         // rolesAuthority.setRoleCapability(
         //     OWNER_ROLE, address(sourceTeller), sourceTeller.updateAssetData.selector, true
@@ -87,16 +78,16 @@ contract USDAILayerZeroBridgeScript is Script, SoneiumAddresses, ContractNames, 
 
         // USDC.approve(address(vault), sharesToBridge);
 
-        sourceTeller.depositAndBridge{value: fee}(
-            USDC,                    
-            sharesToBridge,                   // Amount to deposit
-            0,                              // Minimum shares to receive (0 for no minimum)
-            vm.addr(privateKey),            // Address to receive shares on destination chain
-            abi.encode(layerZeroMainnetEndpointId), // LayerZero destination chain ID
-            NATIVE_ERC20,                   // Pay fee in native token
-            fee                             // Maximum fee to pay
-        );
-
+        // sourceTeller.depositAndBridge{value: fee}(
+        //     USDC,                    
+        //     sharesToBridge,                   // Amount to deposit
+        //     0,                              // Minimum shares to receive (0 for no minimum)
+        //     vm.addr(privateKey),            // Address to receive shares on destination chain
+        //     abi.encode(layerZeroSoneiumEndpointId), // LayerZero destination chain ID
+        //     NATIVE_ERC20,                   // Pay fee in native token
+        //     fee                             // Maximum fee to pay
+        // );
+        
         vm.stopBroadcast();
     }
 }
