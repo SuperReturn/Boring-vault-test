@@ -2690,6 +2690,57 @@ contract MerkleTreeHelper is CommonBase, ChainValues {
         }
     }
 
+        // ========================================= Euler =========================================
+    function _addEulerLeafs(address[] memory eulerVaults, ManageLeaf[] memory leafs) internal {
+        address USDC = getAddress(sourceChain, "USDC");
+
+        for (uint256 i; i < eulerVaults.length; ++i) {
+            if (!tokenToSpenderToApprovalInTree[USDC][eulerVaults[i]]) {
+                unchecked {
+                    leafIndex++;
+                }
+            }
+            leafs[leafIndex] = ManageLeaf(
+                USDC,
+                false,
+                "approve(address,uint256)",
+                new address[](1),
+                "Approve USDC to Euler",
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = eulerVaults[i];
+
+            // deposit
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                eulerVaults[i],
+                false,
+                "deposit(uint256,address)",
+                new address[](1),
+                string(abi.encodePacked("Deposit to Euler ", Strings.toHexString(uint256(uint160(eulerVaults[i])), 20))),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "boringVault");
+
+            // withdraw
+            unchecked {
+                leafIndex++;
+            }
+            leafs[leafIndex] = ManageLeaf(
+                eulerVaults[i],
+                false,
+                "withdraw(uint256,address,address)",
+                new address[](2),
+                string(abi.encodePacked("Withdraw from Euler ", Strings.toHexString(uint256(uint160(eulerVaults[i])), 20))),
+                getAddress(sourceChain, "rawDataDecoderAndSanitizer")
+            );
+            leafs[leafIndex].argumentAddresses[0] = getAddress(sourceChain, "boringVault");
+            leafs[leafIndex].argumentAddresses[1] = getAddress(sourceChain, "boringVault");
+        }
+    }
+
     // ========================================= Aura =========================================
 
     function _addAuraLeafs(ManageLeaf[] memory leafs, address auraDeposit) internal {
