@@ -7,13 +7,13 @@ import {BoringVault} from "src/base/BoringVault.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {ArcticArchitectureLens} from "src/helper/ArcticArchitectureLens.sol";
 import {AccountantWithRateProviders} from "src/base/Roles/AccountantWithRateProviders.sol";
-import {OPAddresses} from "test/resources/OPAddresses.sol";
+import {SoneiumAddresses} from "test/resources/SoneiumAddresses.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 
-contract USDAIWithdrawRequestScript is Script, OPAddresses, ContractNames, MerkleTreeHelper {
+contract USDAIWithdrawRequestScript is Script, SoneiumAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     BoringVault boringVault;
@@ -27,8 +27,8 @@ contract USDAIWithdrawRequestScript is Script, OPAddresses, ContractNames, Merkl
     uint256 withdrawShares;
 
     function setUp() public {
-        vm.createSelectFork("optimism");
-        setSourceChainName("optimism");
+        vm.createSelectFork("soneium");
+        setSourceChainName("soneium");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
         
         // Initialize contract instances
@@ -70,20 +70,6 @@ contract USDAIWithdrawRequestScript is Script, OPAddresses, ContractNames, Merkl
             queue.updateAtomicRequest(request);
 
             console.log("Withdrawal request created");
-
-            // Get the request IDs and display the first one
-            // bytes32[] memory requestIds = queue.getUserAtomicRequestIds(user, boringVault, USDC);
-            // if (requestIds.length > 0) {
-            //     console.log("Request ID:", uint256(requestIds[0]));
-                
-            //     // Decode request information from ID
-            //     (,,,uint64 deadline, uint88 atomicPrice, uint96 offerAmount) = 
-            //         abi.decode(requestIds[0], (address, address, address, uint64, uint88, uint96));
-                
-            //     console.log("Request details:");
-            //     console.log("- Deadline:", deadline);
-            //     console.log("- Atomic Price:", atomicPrice);
-            //     console.log("- Offer Amount:", offerAmount);
             // }
         } else {
             console.log("No shares available for withdrawal");

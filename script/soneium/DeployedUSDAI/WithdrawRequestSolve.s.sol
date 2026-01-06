@@ -6,14 +6,14 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {BoringVault} from "src/base/BoringVault.sol";
 import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {AtomicSolverV4} from "src/atomic-queue/AtomicSolverV4.sol";
-import {OPAddresses} from "test/resources/OPAddresses.sol";
+import {SoneiumAddresses} from "test/resources/SoneiumAddresses.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
 import {console} from "forge-std/console.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 
-contract SolveWithdrawRequestScript is Script, OPAddresses, ContractNames, MerkleTreeHelper {
+contract SolveWithdrawRequestScript is Script, SoneiumAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     AtomicQueue queue;
@@ -22,8 +22,8 @@ contract SolveWithdrawRequestScript is Script, OPAddresses, ContractNames, Merkl
     TellerWithMultiAssetSupport teller;
     
     function setUp() public {
-        vm.createSelectFork("optimism");
-        setSourceChainName("optimism");
+        vm.createSelectFork("soneium");
+        setSourceChainName("soneium");
         
         // Initialize contract instances
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
