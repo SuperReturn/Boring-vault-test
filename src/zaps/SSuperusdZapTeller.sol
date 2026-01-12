@@ -12,6 +12,9 @@ import { ZapTellerBase } from "./ZapTellerBase.sol";
 /// @notice A teller that helps convert a base asset to sSuperUSD.
 contract SSuperusdZapTeller is ZapTellerBase {
 
+    /// @notice Emitted when an asset is deposited to sSuperUSD.
+    event Deposit(address indexed asset, address indexed sender, address indexed receiver, uint256 assetAmount, uint256 ssuperusdAmount);
+
     /***************************************
     CONSTRUCTOR
     ***************************************/
@@ -96,5 +99,7 @@ contract SSuperusdZapTeller is ZapTellerBase {
         ssuperusdAmount = _convertAssetToSSuperUSD(asset, depositAmount, minimumMint);
         // transfer ssuperusd to the receiver
         SafeERC20.safeTransfer(IERC20(ssuperusd), receiver, ssuperusdAmount);
+        // emit event
+        emit Deposit(asset, msg.sender, receiver, depositAmount, ssuperusdAmount);
     }
 }
