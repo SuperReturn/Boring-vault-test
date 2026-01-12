@@ -37,6 +37,9 @@ contract DeployZapTellers is Script, ContractNames, SoneiumAddresses {
     address public ssuperusdZapTeller;
     address public ssuperusdSakeZapTeller;
 
+    address public ssuperusdZapTellerExpected = address(0x2126574189501c9Ab80b72027453E27BA933a574);
+    address public ssuperusdSakeZapTellerExpected = address(0x686D8191EBc458dB82Bfa1095C636F35d6053bD7);
+
     function setUp() external {
         privateKey = vm.envUint("PRIVATE_KEY");
         vm.createSelectFork("soneium");
@@ -64,19 +67,19 @@ contract DeployZapTellers is Script, ContractNames, SoneiumAddresses {
         console.log("sSuperUSD Teller      :", ssuperusdTeller);
 
         bool areDependenciesDeployed = true;
-        if(superusd == address(0)) {
+        if(!_hasCode(superusd)) {
             console.log("SuperUSD not deployed yet");
             areDependenciesDeployed = false;
         }
-        if(ssuperusd == address(0)) {
+        if(!_hasCode(ssuperusd)) {
             console.log("sSuperUSD not deployed yet");
             areDependenciesDeployed = false;
         }
-        if(superusdTeller == address(0)) {
+        if(!_hasCode(superusdTeller)) {
             console.log("SuperUSD Teller not deployed yet");
             areDependenciesDeployed = false;
         }
-        if(ssuperusdTeller == address(0)) {
+        if(!_hasCode(ssuperusdTeller)) {
             console.log("sSuperUSD Teller not deployed yet");
             areDependenciesDeployed = false;
         }
@@ -97,15 +100,20 @@ contract DeployZapTellers is Script, ContractNames, SoneiumAddresses {
             creationCode = type(SSuperusdZapTeller).creationCode;
             constructorArgs = abi.encode(owner, superusd, ssuperusd, superusdTeller, ssuperusdTeller);
             ssuperusdZapTeller = deployer.deployContract(sSuperUSDZapTellerName, creationCode, constructorArgs, 0);
+            console.log("Deployed SSuperusdZapTeller at ", ssuperusdZapTeller);
+            if(ssuperusdZapTellerExpected != address(0) && ssuperusdZapTeller != ssuperusdZapTellerExpected) {
+                console.log("Incorrect SSuperusdZapTeller address. Expected", ssuperusdZapTellerExpected, "got", ssuperusdZapTeller);
+                revert("Incorrect SSuperusdZapTeller address");
+            }
         } else {
             ssuperusdZapTeller = deployer.getAddress(sSuperUSDZapTellerName);
         }
 
-        if(sakePool == address(0)) {
+        if(!_hasCode(sakePool)) {
             console.log("Sake pool not deployed on this network");
             areDependenciesDeployed = false;
         }
-        if(assuperusd == address(0)) {
+        if(!_hasCode(assuperusd)) {
             console.log("asSuperUSD not deployed on this network");
             areDependenciesDeployed = false;
         }
@@ -121,6 +129,11 @@ contract DeployZapTellers is Script, ContractNames, SoneiumAddresses {
             creationCode = type(SSuperusdSakeZapTeller).creationCode;
             constructorArgs = abi.encode(owner, superusd, ssuperusd, superusdTeller, ssuperusdTeller, sakePool, assuperusd);
             ssuperusdSakeZapTeller = deployer.deployContract(sSuperUSDSakeZapTellerName, creationCode, constructorArgs, 0);
+            console.log("Deployed SSuperusdSakeZapTeller at ", ssuperusdSakeZapTeller);
+            if(ssuperusdSakeZapTellerExpected != address(0) && ssuperusdSakeZapTeller != ssuperusdSakeZapTellerExpected) {
+                console.log("Incorrect SSuperusdSakeZapTeller address. Expected", ssuperusdSakeZapTellerExpected, "got", ssuperusdSakeZapTeller);
+                revert("Incorrect SSuperusdSakeZapTeller address");
+            }
         } else {
             ssuperusdSakeZapTeller = deployer.getAddress(sSuperUSDSakeZapTellerName);
         }
@@ -135,5 +148,13 @@ contract DeployZapTellers is Script, ContractNames, SoneiumAddresses {
             size := extcodesize(deployedAt)
         }
         return size > 0 ? deployedAt : address(0);
+    }
+
+    function _hasCode(address addr) internal view returns (bool) {
+        uint256 size;
+        assembly {
+            size := extcodesize(addr)
+        }
+        return (size > 0);
     }
 }
