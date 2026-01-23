@@ -83,20 +83,20 @@ contract SwapUSDCScript is Script, PlumeAddresses, ContractNames, MerkleTreeHelp
 
         // ICrossChainTeller teller2 = ICrossChainTeller(0x6104fe10ca937a086ba7AdbD0910A4733d380cB6); 
 
-        uint256 depositAmount = 100000 * 1e6; 
+        uint256 depositAmount = 90000 * 1e6; 
         uint256 minimumMint = depositAmount;
 
         // get from the api: https://pusd.plume.org/api/compliance?user=0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB&chainId=98866&isDepositAndBridge=false&isZapper=false
         // latest: https://api-dev.nest.credit//v1/user/0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB/compliance?chainId=98866&isDepositAndBridge=false&isZapper=false
         PredicateMessage memory predicateMessage = PredicateMessage({
-            taskId: "0db8990c-9d6b-4af5-a1b4-d54cb37912f0",
-            expireByBlockNumber: 1764934401,
+            taskId: "a4522ec1-fec3-4a2b-83c2-09c4c3c87bdd",
+            expireByBlockNumber: 1767952954,
             signerAddresses: new address[](1),
             signatures: new bytes[](1)
         });
         predicateMessage.signerAddresses[0] = 0x5f936C12E43181662e85814b0cFd10334A33E5A1;
         // remove 0x in api signatures
-        predicateMessage.signatures[0] = hex"2f44a0586961b92c245e5aeaa1634387ed5c872677db97df86eca7a3b904a3462e5a780b46a724b72857e4f18922797314436c7c514e858b1788ed6808a9a22d1c";
+        predicateMessage.signatures[0] = hex"b130687190934d8dd87d42acd890f9dd87465218f0145b7cbab3def5f387f49e60b421b7bb2f8691b9ddf7f9235bd38088a2ba78f8a949babc00bc85827b2e471b";
 
         // usdc.approve(tellerAddress2, depositAmount);
 
