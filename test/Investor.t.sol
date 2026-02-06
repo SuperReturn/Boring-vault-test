@@ -189,7 +189,7 @@ contract InvestorTest is Test {
         mockRevertingVault = new MockRevertingVault();
 
         // Deploy Investor
-        investor = new Investor(address(this), rolesAuthority, address(boringVault), address(atomicQueue));
+        investor = new Investor(address(this), rolesAuthority, address(boringVault));
 
         // Setup auth
         boringVault.setAuthority(rolesAuthority);
@@ -272,7 +272,6 @@ contract InvestorTest is Test {
 
     function testConstructorSetsImmutables() external view {
         assertEq(investor.boringVault(), address(boringVault));
-        assertEq(investor.queue(), address(atomicQueue));
         assertEq(investor.owner(), address(this));
         assertEq(investor.numVaults(), 0);
     }

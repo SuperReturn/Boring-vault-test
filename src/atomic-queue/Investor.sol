@@ -14,8 +14,6 @@ import { IInvestor } from "./IInvestor.sol";
 contract Investor is IInvestor, Auth {
 
     address public immutable boringVault;
-    //address public immutable manager;
-    address public immutable queue;
 
     enum VaultType { ERC4626, AaveV3 }
     struct VaultInfo {
@@ -34,17 +32,14 @@ contract Investor is IInvestor, Auth {
      * @notice Constructor
      * @param _owner The owner of the contract
      * @param _authority The authority of the contract
+     * @param _boringVault The BoringVault contract to use for withdrawal
      */
     constructor(
         address _owner,
         Authority _authority,
-        address _boringVault,
-        //address _manager,
-        address _queue
+        address _boringVault
     ) Auth(_owner, _authority) {
         boringVault = _boringVault;
-        //manager = _manager;
-        queue = _queue;
     }
     
     /**
@@ -111,6 +106,13 @@ contract Investor is IInvestor, Auth {
         }
     }
 
+    /**
+     * @notice Withdraws assets from the vault
+     * @param want The want token
+     * @param vaultInfo The vault info
+     * @param vaultTokenBalance The balance of the BoringVault in the investment vault token
+     * @param amountRequired The amount of assets needed
+     */
     function _withdraw(ERC20 want, VaultInfo memory vaultInfo, uint256 vaultTokenBalance, uint256 amountRequired) internal {
         if(vaultInfo.vaultType == VaultType.ERC4626) {
             _withdrawERC4626(want, vaultInfo, vaultTokenBalance, amountRequired);
@@ -123,6 +125,13 @@ contract Investor is IInvestor, Auth {
         }
     }
 
+    /**
+     * @notice Withdraws assets from an ERC4626 vault
+     * @param want The want token
+     * @param vaultInfo The vault info
+     * @param vaultTokenBalance The balance of the BoringVault in the investment vault token
+     * @param amountRequired The amount of assets needed
+     */
     function _withdrawERC4626(ERC20 want, VaultInfo memory vaultInfo, uint256 vaultTokenBalance, uint256 amountRequired) internal {
         // try redeem first
         uint256 amountWithdrawn = ERC4626(vaultInfo.vault).previewRedeem(vaultTokenBalance);
@@ -136,6 +145,13 @@ contract Investor is IInvestor, Auth {
         }    
     }
 
+    /**
+     * @notice Withdraws assets from an Aave V3 pool
+     * @param want The want token
+     * @param vaultInfo The vault info
+     * @param vaultTokenBalance The balance of the BoringVault in the investment vault token
+     * @param amountRequired The amount of assets needed
+     */
     function _withdrawAaveV3(ERC20 want, VaultInfo memory vaultInfo, uint256 vaultTokenBalance, uint256 amountRequired) internal {
         // only withdraw the amount required
         uint256 amountWithdrawn = Math.min(vaultTokenBalance, amountRequired);

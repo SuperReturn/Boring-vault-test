@@ -1246,7 +1246,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         returns (Investor _investor, MockERC4626VaultAQ _mockVault)
     {
         _mockVault = new MockERC4626VaultAQ(ERC20(address(USDC)));
-        _investor = new Investor(address(this), rolesAuthority, address(boringVault), address(atomicQueue));
+        _investor = new Investor(address(this), rolesAuthority, address(boringVault));
 
         // Grant Investor the manage(address,bytes,uint256) capability on BoringVault
         rolesAuthority.setRoleCapability(
@@ -1276,7 +1276,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
     }
 
     function testSetInvestor() external {
-        Investor _investor = new Investor(address(this), rolesAuthority, address(boringVault), address(atomicQueue));
+        Investor _investor = new Investor(address(this), rolesAuthority, address(boringVault));
 
         vm.expectEmit(true, true, true, true);
         emit InvestorUpdated(address(_investor));

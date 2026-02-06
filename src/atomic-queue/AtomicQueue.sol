@@ -552,6 +552,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
     * @param offerAmount Amount of shares to withdraw
     * @param minimumAssetsOut Minimum amount of assets expected
     * @param teller The teller contract to use for withdrawal
+    * @return assetsOut The amount of want assets sent to the caller
     */
     function instantWithdraw(
         ERC20 offer,

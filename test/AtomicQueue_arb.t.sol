@@ -189,7 +189,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             deployer.deployContract(
                 "SuperUSD Vault Investor V1.0",
                 type(Investor).creationCode,
-                abi.encode(address(this), superusdRolesAuthority, address(superusdBoringVault), address(_atomicQueue)),
+                abi.encode(address(this), superusdRolesAuthority, address(superusdBoringVault)),
                 0
             )
         );
@@ -306,7 +306,6 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
 
         // Constructor immutables
         assertEq(inv.boringVault(), address(superusdBoringVault), "investor.boringVault");
-        assertEq(inv.queue(), address(q), "investor.queue");
         assertEq(address(q.accountant()), address(superusdAccountant), "queue.accountant");
         assertEq(address(q.solver()), address(s), "queue.solver");
         assertEq(address(q.investor()), address(inv), "queue.investor");
