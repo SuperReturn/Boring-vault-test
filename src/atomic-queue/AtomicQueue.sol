@@ -6,6 +6,7 @@ import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {ReentrancyGuard} from "@solmate/utils/ReentrancyGuard.sol";
 import {IAtomicSolver} from "./IAtomicSolver.sol";
+import {IInvestor} from "./IInvestor.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Auth, Authority} from "@solmate/auth/Auth.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
@@ -187,11 +188,21 @@ contract AtomicQueue is ReentrancyGuard, Auth {
      */
     event SolverUpdated(address newSolver);
 
+    /**
+     * @notice Emitted when `setInvestor` is called.
+     */
+    event InvestorUpdated(address newInvestor);
+
     //============================== VARIABLES ===============================
     /**
      * @notice The solver contract to use for solving
      */
     IAtomicSolver public solver;
+
+    /**
+     * @notice The investor contract to use for managed instant withdrawals.
+     */
+    IInvestor public investor;
 
     /**
      * @notice Constructor
@@ -298,6 +309,16 @@ contract AtomicQueue is ReentrancyGuard, Auth {
                 block.timestamp
             );
         }
+    }
+
+    /**
+     * @notice Allows the owner to update the investor contract
+     * @dev Callable by MULTISIG_ROLE.
+     * @param newInvestor The new investor contract address.
+     */
+    function setInvestor(address newInvestor) external requiresAuth {
+        investor = IInvestor(newInvestor);
+        emit InvestorUpdated(newInvestor);
     }
 
     //============================== VIEW FUNCTIONS ===============================
@@ -556,6 +577,11 @@ contract AtomicQueue is ReentrancyGuard, Auth {
 
         uint256 assetOutWithDiscount = assetsOut.mulDivDown(DISCOUNT_DENOMINATOR - discount, DISCOUNT_DENOMINATOR);
         
+        // Ensure minimum output is met
+        if (assetOutWithDiscount < minimumAssetsOut) {
+            revert AtomicQueue__MinimumAssetsNotMet();
+        }
+        
         // Calculate assets needed for pending withdrawal requests for this want token
         uint256 pendingWithdrawAssets = withdrawInProgressAmount[address(offer)][address(want)].mulDivDown(
             accountant.getRateInQuoteSafe(want),
@@ -567,12 +593,16 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         uint256 totalRequired = assetOutWithDiscount + pendingWithdrawAssets;
         
         if (totalRequired > vaultBalance) {
-            revert AtomicQueue__InsufficientVaultLiquidity(totalRequired, vaultBalance);
-        }
-        
-        // Ensure minimum output is met
-        if (assetOutWithDiscount < minimumAssetsOut) {
-            revert AtomicQueue__MinimumAssetsNotMet();
+            // cannot withdraw from zero address investor
+            IInvestor _investor = investor;
+            if (address(_investor) == address(0)) revert AtomicQueue__InsufficientVaultLiquidity(totalRequired, vaultBalance);
+            // manage the vault to free funds
+            _investor.autoWithdrawal(vaultBalance, totalRequired, want);
+            // check vault balance after management
+            vaultBalance = want.balanceOf(address(vault));
+            if (totalRequired > vaultBalance) {
+                revert AtomicQueue__InsufficientVaultLiquidity(totalRequired, vaultBalance);
+            }
         }
         
         // Transfer shares from user to this contract
