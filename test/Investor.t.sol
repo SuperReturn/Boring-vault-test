@@ -680,21 +680,21 @@ contract InvestorTest is Test {
 
     // ========================================= BoringVaultManaged Event =========================================
 
-    event BoringVaultManaged();
+    event BoringVaultManaged(address target);
+    event BoringVaultManageError(address target);
 
     function testManageEmitsBoringVaultManagedEvent() external {
         _setVaultsERC4626Only();
         _setupERC4626Vault(500e6, 500e6);
 
-        // Expect the BoringVaultManaged event from investor
+        // previewRedeem(500e6) = 500e6 > 200e6 => withdraw path => _manage(mockERC4626Vault, ...)
         vm.expectEmit(true, true, true, true, address(investor));
-        emit BoringVaultManaged();
+        emit BoringVaultManaged(address(mockERC4626Vault));
 
-        // Trigger autoWithdrawal which will call _manage internally
         investor.autoWithdrawal(0, 200e6, ERC20(address(USDC)));
     }
 
-    function testManageDoesNotEmitOnFailure() external {
+    function testManageEmitsErrorEventOnFailure() external {
         // Set up only a reverting vault
         Investor.VaultInfo[] memory vaults = new Investor.VaultInfo[](1);
         vaults[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockRevertingVault)});
@@ -702,15 +702,72 @@ contract InvestorTest is Test {
 
         deal(address(mockRevertingVault), address(boringVault), 500e6);
 
-        // Record logs to verify no BoringVaultManaged event
+        // previewRedeem(500e6) returns 0 => 0 <= 200e6 => redeem path => _manage(mockRevertingVault, ...)
+        // manage reverts => catch block emits BoringVaultManageError
+        vm.expectEmit(true, true, true, true, address(investor));
+        emit BoringVaultManageError(address(mockRevertingVault));
+
         vm.recordLogs();
 
         investor.autoWithdrawal(0, 200e6, ERC20(address(USDC)));
 
+        // Verify BoringVaultManaged (success) was NOT emitted
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        bytes32 eventSig = keccak256("BoringVaultManaged()");
+        bytes32 successSig = keccak256("BoringVaultManaged(address)");
         for (uint256 i = 0; i < logs.length; i++) {
-            assertTrue(logs[i].topics[0] != eventSig, "BoringVaultManaged should NOT be emitted on failure");
+            assertTrue(logs[i].topics[0] != successSig, "BoringVaultManaged should NOT be emitted on failure");
         }
+    }
+
+    function testManageDoesNotEmitErrorOnSuccess() external {
+        _setVaultsERC4626Only();
+        _setupERC4626Vault(500e6, 500e6);
+
+        vm.recordLogs();
+
+        investor.autoWithdrawal(0, 200e6, ERC20(address(USDC)));
+
+        // Verify BoringVaultManageError was NOT emitted
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 errorSig = keccak256("BoringVaultManageError(address)");
+        for (uint256 i = 0; i < logs.length; i++) {
+            assertTrue(logs[i].topics[0] != errorSig, "BoringVaultManageError should NOT be emitted on success");
+        }
+    }
+
+    function testManageEmitsBothEventsOnMixedVaults() external {
+        // Set up: reverting vault first, then working ERC4626 vault
+        Investor.VaultInfo[] memory vaults = new Investor.VaultInfo[](2);
+        vaults[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockRevertingVault)});
+        vaults[1] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockERC4626Vault)});
+        investor.setVaults(vaults);
+
+        deal(address(mockRevertingVault), address(boringVault), 500e6);
+        _setupERC4626Vault(500e6, 500e6);
+
+        vm.recordLogs();
+
+        investor.autoWithdrawal(0, 300e6, ERC20(address(USDC)));
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 successSig = keccak256("BoringVaultManaged(address)");
+        bytes32 errorSig = keccak256("BoringVaultManageError(address)");
+
+        bool foundError;
+        bool foundSuccess;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == errorSig) {
+                address target = abi.decode(logs[i].data, (address));
+                assertEq(target, address(mockRevertingVault), "Error event should reference reverting vault");
+                foundError = true;
+            }
+            if (logs[i].topics[0] == successSig) {
+                address target = abi.decode(logs[i].data, (address));
+                assertEq(target, address(mockERC4626Vault), "Success event should reference ERC4626 vault");
+                foundSuccess = true;
+            }
+        }
+        assertTrue(foundError, "BoringVaultManageError should be emitted for reverting vault");
+        assertTrue(foundSuccess, "BoringVaultManaged should be emitted for working vault");
     }
 }

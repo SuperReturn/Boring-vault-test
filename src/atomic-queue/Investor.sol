@@ -29,7 +29,8 @@ contract Investor is IInvestor, Auth {
     error Investor__VaultIndexOutOfBounds();
 
     event VaultsUpdated(uint256 newNumVaults);
-    event BoringVaultManaged();
+    event BoringVaultManaged(address target);
+    event BoringVaultManageError(address target);
 
     /**
      * @notice Constructor
@@ -184,9 +185,10 @@ contract Investor is IInvestor, Auth {
     function _manage(address target, bytes memory data) internal {
         try BoringVault(payable(boringVault)).manage(target, data, 0) {
             // success
-            emit BoringVaultManaged();
+            emit BoringVaultManaged(target);
         } catch {
             // ignore errors, continue to next vault
+            emit BoringVaultManageError(target);
         }
     }
 
