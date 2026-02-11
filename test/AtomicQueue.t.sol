@@ -1196,7 +1196,7 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         vm.stopPrank();
     }
 
-    function testInstantWithdrawInsufficientLiquidity() external {
+    function testInstantWithdrawInsufficientLiquidityNoInvestor() external {
         vm.startPrank(user);
 
         // update several requests and solve one of them
@@ -1212,9 +1212,33 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
 
         skip(atomicQueue.maturityTime() + 1);
 
-        // instant withdraw
-        vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__InsufficientVaultLiquidity.selector, userUSDCInitialBalance - 1e6 + 1000e6, userUSDCInitialBalance));
+        // instant withdraw — investor is not set, so reverts with InvestorNotSet
+        vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__InvestorNotSet.selector));
         atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, 1000e6, 0, teller);
+
+        vm.stopPrank();
+    }
+
+    function testInstantWithdrawInsufficientLiquidity() external {
+        (Investor _investor, MockERC4626VaultAQ _mockVault) = _setupInvestor();
+
+        // Only 50 USDC in the ERC4626 vault — not enough to cover the gap
+        deal(address(USDC), address(boringVault), 100e6);
+        deal(address(_mockVault), address(boringVault), 50e6);
+        deal(address(USDC), address(_mockVault), 50e6);
+
+        vm.startPrank(user);
+
+        // Try to withdraw 500 shares = 500 USDC needed, only 150 available total
+        uint256 offerAmount = 500e6;
+        uint256 totalRequired = offerAmount; // no pending, discount=0, rate=1
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AtomicQueue.AtomicQueue__InsufficientVaultLiquidity.selector, totalRequired, 150e6
+            )
+        );
+        atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, offerAmount, 0, teller);
 
         vm.stopPrank();
     }

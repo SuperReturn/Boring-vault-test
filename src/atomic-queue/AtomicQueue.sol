@@ -100,6 +100,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
     error AtomicQueue__BadUser();
     error AtomicQueue__BoringVaultTellerMismatch(address vault, address teller);
     error AtomicQueue__ZeroOfferAmount(address user);
+    error AtomicQueue__InvestorNotSet();
     error AtomicQueue__InsufficientVaultLiquidity(uint256 required, uint256 available);
     error AtomicQueue__RequestNotMature(address user);
     error AtomicQueue__MinimumAssetsNotMet();
@@ -596,7 +597,7 @@ contract AtomicQueue is ReentrancyGuard, Auth {
         if (totalRequired > vaultBalance) {
             // cannot withdraw from zero address investor
             IInvestor _investor = investor;
-            if (address(_investor) == address(0)) revert AtomicQueue__InsufficientVaultLiquidity(totalRequired, vaultBalance);
+            if (address(_investor) == address(0)) revert AtomicQueue__InvestorNotSet();
             // manage the vault to free funds
             _investor.autoWithdrawal(vaultBalance, totalRequired, want);
             // check vault balance after management

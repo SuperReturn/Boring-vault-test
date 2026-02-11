@@ -857,18 +857,9 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         uint256 withdrawShares = 100e6;
         _giveUserShares(withdrawShares);
 
-        // Compute expected revert parameters (discount=0, no pending requests)
-        uint256 rate = superusdAccountant.getRateInQuoteSafe(USDC);
-        uint256 ONE_SHARE = 10 ** ERC20(address(superusdBoringVault)).decimals();
-        uint256 expectedAssetsOut = withdrawShares * rate / ONE_SHARE;
-
-        // totalRequired = expectedAssetsOut + 0 (no pending), vaultBalance = 0
+        // totalRequired > vaultBalance but investor is address(0), so reverts with InvestorNotSet
         vm.prank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                AtomicQueue.AtomicQueue__InsufficientVaultLiquidity.selector, expectedAssetsOut, 0
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__InvestorNotSet.selector));
         atomicQueue.instantWithdraw(
             ERC20(address(superusdBoringVault)), USDC, withdrawShares, 0, superusdTeller
         );
@@ -955,6 +946,33 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         );
 
         vm.clearMockedCalls();
+    }
+
+    // ========================================= GROUP 8: INVESTOR VIEW =========================================
+
+    function testGetMaxAutoWithdraw() external {
+        _deployAndConfigureV2();
+
+        // Snapshot balances the boringVault holds in each investment vault
+        uint256 ausdcBalance = ERC20(ausdcAddress).balanceOf(address(superusdBoringVault));
+        uint256 ydgusdcBalance = ERC20(ydgusdcAddress).balanceOf(address(superusdBoringVault));
+
+        assertTrue(ausdcBalance > 0, "vault has aUSDC");
+        assertTrue(ydgusdcBalance > 0, "vault has ydgusdc");
+
+        // aUSDC is AaveV3 → 1:1 with underlying
+        uint256 expectedFromAave = ausdcBalance;
+
+        // ydgusdc is ERC4626 → previewRedeem gives the underlying amount
+        uint256 expectedFromMorpho = ERC4626(ydgusdcAddress).previewRedeem(ydgusdcBalance);
+        assertTrue(expectedFromMorpho > 0, "morpho previewRedeem > 0");
+
+        uint256 maxWithdraw = investor.getMaxAutoWithdraw();
+
+        //console.log("expected from aave   : ", expectedFromAave);
+        //console.log("expected from morpho : ", expectedFromMorpho);
+        //console.log("expected from both   : ", maxWithdraw);
+        assertEq(maxWithdraw, expectedFromAave + expectedFromMorpho, "sum of both vaults");
     }
 
     function testInstantWithdrawEmitsEvent() external {

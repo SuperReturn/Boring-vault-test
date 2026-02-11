@@ -14,6 +14,7 @@ import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {Investor} from "src/atomic-queue/Investor.sol";
 import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSupport.sol";
 import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
+import {Vm} from "@forge-std/Vm.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ISakePool} from "src/interfaces/external/sake/ISakePool.sol";
@@ -300,11 +301,12 @@ contract InvestorTest is Test {
     }
 
     function testSetVaultsOverwritesShrinks() external {
-        // Set 3 vaults
+        // Set 3 vaults (each must be unique due to duplicate detection)
+        MockERC4626Vault secondERC4626 = new MockERC4626Vault(ERC20(address(USDC)));
         Investor.VaultInfo[] memory vaults3 = new Investor.VaultInfo[](3);
         vaults3[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockERC4626Vault)});
         vaults3[1] = Investor.VaultInfo({vaultType: Investor.VaultType.AaveV3, vault: address(mockAToken)});
-        vaults3[2] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockERC4626Vault)});
+        vaults3[2] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(secondERC4626)});
         investor.setVaults(vaults3);
         assertEq(investor.numVaults(), 3);
 
@@ -330,11 +332,13 @@ contract InvestorTest is Test {
         investor.setVaults(vaults1);
         assertEq(investor.numVaults(), 1);
 
-        // Grow to 3
+        // Grow to 3 (each must be unique due to duplicate detection)
+        MockSakePool secondPool = new MockSakePool(address(USDC));
+        MockAToken secondAToken = new MockAToken(address(secondPool), address(USDC));
         Investor.VaultInfo[] memory vaults3 = new Investor.VaultInfo[](3);
         vaults3[0] = Investor.VaultInfo({vaultType: Investor.VaultType.AaveV3, vault: address(mockAToken)});
         vaults3[1] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockERC4626Vault)});
-        vaults3[2] = Investor.VaultInfo({vaultType: Investor.VaultType.AaveV3, vault: address(mockAToken)});
+        vaults3[2] = Investor.VaultInfo({vaultType: Investor.VaultType.AaveV3, vault: address(secondAToken)});
         investor.setVaults(vaults3);
 
         assertEq(investor.numVaults(), 3);
@@ -343,7 +347,7 @@ contract InvestorTest is Test {
         (address v2,) = investor.getVaultInfo(2);
         assertEq(v0, address(mockAToken));
         assertEq(v1, address(mockERC4626Vault));
-        assertEq(v2, address(mockAToken));
+        assertEq(v2, address(secondAToken));
     }
 
     function testSetVaultsEmpty() external {
@@ -369,6 +373,53 @@ contract InvestorTest is Test {
 
         vm.prank(unauthorized);
         vm.expectRevert("UNAUTHORIZED");
+        investor.setVaults(vaults);
+    }
+
+    function testSetVaultsDuplicateReverts() external {
+        Investor.VaultInfo[] memory vaults = new Investor.VaultInfo[](3);
+        vaults[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockERC4626Vault)});
+        vaults[1] = Investor.VaultInfo({vaultType: Investor.VaultType.AaveV3, vault: address(mockAToken)});
+        vaults[2] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockERC4626Vault)});
+
+        vm.expectRevert(abi.encodeWithSelector(Investor.Investor__VaultAddressDuplicate.selector, address(mockERC4626Vault)));
+        investor.setVaults(vaults);
+    }
+
+    function testSetVaultsDuplicateAdjacentReverts() external {
+        Investor.VaultInfo[] memory vaults = new Investor.VaultInfo[](2);
+        vaults[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockERC4626Vault)});
+        vaults[1] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockERC4626Vault)});
+
+        vm.expectRevert(abi.encodeWithSelector(Investor.Investor__VaultAddressDuplicate.selector, address(mockERC4626Vault)));
+        investor.setVaults(vaults);
+    }
+
+    function testSetVaultsZeroAddressReverts() external {
+        Investor.VaultInfo[] memory vaults = new Investor.VaultInfo[](1);
+        vaults[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(0)});
+
+        vm.expectRevert(abi.encodeWithSelector(Investor.Investor__VaultAddressZero.selector));
+        investor.setVaults(vaults);
+    }
+
+    function testSetVaultsZeroAddressAmongValidReverts() external {
+        // Zero address as the last element is still caught
+        Investor.VaultInfo[] memory vaults = new Investor.VaultInfo[](2);
+        vaults[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockERC4626Vault)});
+        vaults[1] = Investor.VaultInfo({vaultType: Investor.VaultType.AaveV3, vault: address(0)});
+
+        vm.expectRevert(abi.encodeWithSelector(Investor.Investor__VaultAddressZero.selector));
+        investor.setVaults(vaults);
+    }
+
+    function testSetVaultsDuplicateZeroAddress() external {
+        // Two address(0) entries — zero-address check now runs before the duplicate check
+        Investor.VaultInfo[] memory vaults = new Investor.VaultInfo[](2);
+        vaults[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(0)});
+        vaults[1] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(0)});
+
+        vm.expectRevert(abi.encodeWithSelector(Investor.Investor__VaultAddressZero.selector));
         investor.setVaults(vaults);
     }
 
@@ -564,5 +615,102 @@ contract InvestorTest is Test {
 
         uint256 vaultUsdcAfter = USDC.balanceOf(address(boringVault));
         assertEq(vaultUsdcAfter - vaultUsdcBefore, 200e6, "Only 200 USDC should be freed");
+    }
+
+    // ========================================= getMaxAutoWithdraw =========================================
+
+    function testGetMaxAutoWithdrawERC4626() external {
+        _setVaultsERC4626Only();
+        // 500 shares, 500 USDC underlying => 1:1 ratio
+        _setupERC4626Vault(500e6, 500e6);
+
+        uint256 maxWithdraw = investor.getMaxAutoWithdraw();
+        assertEq(maxWithdraw, 500e6, "Should return previewRedeem of 500 shares");
+    }
+
+    function testGetMaxAutoWithdrawAaveV3() external {
+        _setVaultsAaveOnly();
+        // 300 aTokens held by boringVault
+        _setupAaveVault(300e6, 300e6);
+
+        uint256 maxWithdraw = investor.getMaxAutoWithdraw();
+        assertEq(maxWithdraw, 300e6, "AaveV3 returns 1:1 with aToken balance");
+    }
+
+    function testGetMaxAutoWithdrawMultipleVaults() external {
+        // Set up 2 vaults: ERC4626 (200 shares, 200 underlying) + AaveV3 (300 aTokens)
+        Investor.VaultInfo[] memory vaults = new Investor.VaultInfo[](2);
+        vaults[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockERC4626Vault)});
+        vaults[1] = Investor.VaultInfo({vaultType: Investor.VaultType.AaveV3, vault: address(mockAToken)});
+        investor.setVaults(vaults);
+
+        _setupERC4626Vault(200e6, 200e6);
+        _setupAaveVault(300e6, 300e6);
+
+        uint256 maxWithdraw = investor.getMaxAutoWithdraw();
+        assertEq(maxWithdraw, 500e6, "Sum of ERC4626 (200) + AaveV3 (300)");
+    }
+
+    function testGetMaxAutoWithdrawZeroVaults() external view {
+        // No vaults configured
+        uint256 maxWithdraw = investor.getMaxAutoWithdraw();
+        assertEq(maxWithdraw, 0, "Zero vaults should return 0");
+    }
+
+    function testGetMaxAutoWithdrawSkipsZeroBalance() external {
+        _setVaultsERC4626Only();
+        // Vault exists but boringVault holds 0 shares
+        // (underlying in vault doesn't matter if no shares)
+        deal(address(USDC), address(mockERC4626Vault), 1_000e6);
+
+        uint256 maxWithdraw = investor.getMaxAutoWithdraw();
+        assertEq(maxWithdraw, 0, "Should return 0 when boringVault has no shares");
+    }
+
+    function testGetMaxAutoWithdrawNonOneExchangeRate() external {
+        _setVaultsERC4626Only();
+        // Mint 100 shares to boringVault (updates totalSupply) and seed 200 USDC underlying
+        // This creates a 2:1 ratio: previewRedeem(100) = 100 * 200 / 100 = 200
+        mockERC4626Vault.mint(address(boringVault), 100e6);
+        deal(address(USDC), address(mockERC4626Vault), 200e6);
+
+        uint256 maxWithdraw = investor.getMaxAutoWithdraw();
+        assertEq(maxWithdraw, 200e6, "Should reflect 2:1 exchange rate from previewRedeem");
+    }
+
+    // ========================================= BoringVaultManaged Event =========================================
+
+    event BoringVaultManaged();
+
+    function testManageEmitsBoringVaultManagedEvent() external {
+        _setVaultsERC4626Only();
+        _setupERC4626Vault(500e6, 500e6);
+
+        // Expect the BoringVaultManaged event from investor
+        vm.expectEmit(true, true, true, true, address(investor));
+        emit BoringVaultManaged();
+
+        // Trigger autoWithdrawal which will call _manage internally
+        investor.autoWithdrawal(0, 200e6, ERC20(address(USDC)));
+    }
+
+    function testManageDoesNotEmitOnFailure() external {
+        // Set up only a reverting vault
+        Investor.VaultInfo[] memory vaults = new Investor.VaultInfo[](1);
+        vaults[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(mockRevertingVault)});
+        investor.setVaults(vaults);
+
+        deal(address(mockRevertingVault), address(boringVault), 500e6);
+
+        // Record logs to verify no BoringVaultManaged event
+        vm.recordLogs();
+
+        investor.autoWithdrawal(0, 200e6, ERC20(address(USDC)));
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 eventSig = keccak256("BoringVaultManaged()");
+        for (uint256 i = 0; i < logs.length; i++) {
+            assertTrue(logs[i].topics[0] != eventSig, "BoringVaultManaged should NOT be emitted on failure");
+        }
     }
 }

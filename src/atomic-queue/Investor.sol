@@ -24,9 +24,12 @@ contract Investor is IInvestor, Auth {
     mapping(uint256 index => VaultInfo vaultInfo) internal _vaultInfos;
 
     error UnsupportedVaultType();
+    error Investor__VaultAddressZero();
+    error Investor__VaultAddressDuplicate(address vault);
     error Investor__VaultIndexOutOfBounds();
 
     event VaultsUpdated(uint256 newNumVaults);
+    event BoringVaultManaged();
 
     /**
      * @notice Constructor
@@ -41,22 +44,34 @@ contract Investor is IInvestor, Auth {
     ) Auth(_owner, _authority) {
         boringVault = _boringVault;
     }
-    
+
     /**
      * @notice Sets the list of vaults to withdraw from during autoWithdrawal.
      * @dev Overwrites all existing entries and deletes any stale tail entries.
      * @param vaultInfos The new ordered list of vaults.
      */
     function setVaults(VaultInfo[] calldata vaultInfos) external requiresAuth {
+        // check for duplicate vaults
+        for (uint256 i = 0; i < vaultInfos.length; i++) {
+            address vaultI = vaultInfos[i].vault;
+            if (vaultI == address(0)) revert Investor__VaultAddressZero();
+            for (uint256 j = i+1; j < vaultInfos.length; j++) {
+                if (vaultI == vaultInfos[j].vault) revert Investor__VaultAddressDuplicate(vaultI);
+            }
+        }
         uint256 newLen = vaultInfos.length;
         uint256 oldLen = numVaults;
+        // set the new vaults
         for (uint256 i = 0; i < newLen; i++) {
             _vaultInfos[i] = vaultInfos[i];
         }
+        // delete the old vaults
         for (uint256 i = newLen; i < oldLen; i++) {
             delete _vaultInfos[i];
         }
+        // set length
         numVaults = newLen;
+        // emit event
         emit VaultsUpdated(newLen);
     }
 
@@ -142,7 +157,7 @@ contract Investor is IInvestor, Auth {
         // if more than enough, only withdraw what is needed
         else if(amountWithdrawn > amountRequired) {
             _manage(vaultInfo.vault, abi.encodeWithSelector(ERC4626.withdraw.selector, amountRequired, boringVault, boringVault));
-        }    
+        }
     }
 
     /**
@@ -169,8 +184,68 @@ contract Investor is IInvestor, Auth {
     function _manage(address target, bytes memory data) internal {
         try BoringVault(payable(boringVault)).manage(target, data, 0) {
             // success
+            emit BoringVaultManaged();
         } catch {
             // ignore errors, continue to next vault
         }
+    }
+
+    /**
+     * @notice Calculates the max that can be withdrawn from all vaults
+     * @return amount The max amount returned in a withdraw
+     */
+    function getMaxAutoWithdraw() external view returns (uint256 amount) {
+        uint256 len = numVaults;
+        // loop through vaults
+        for(uint256 vaultIndex = 0; vaultIndex < len; vaultIndex++) {
+            // get vault info
+            VaultInfo memory vaultInfo = _vaultInfos[vaultIndex];
+            // get the balance of the vault
+            uint256 vaultTokenBalance = ERC20(vaultInfo.vault).balanceOf(boringVault);
+            // skip if the balance is 0
+            if(vaultTokenBalance == 0) continue;
+            // calculate max withdraw and add to total
+            amount += _previewMaxWithdraw(vaultInfo, vaultTokenBalance);
+        }
+    }
+
+    /**
+     * @notice Previews a max withdraw from the vault
+     * @param vaultInfo The vault info
+     * @param vaultTokenBalance The balance of the BoringVault in the investment vault token
+     * @return amount The max amount returned in a withdraw
+     */
+    function _previewMaxWithdraw(VaultInfo memory vaultInfo, uint256 vaultTokenBalance) internal view returns (uint256 amount) {
+        if(vaultInfo.vaultType == VaultType.ERC4626) {
+            return _previewMaxWithdrawERC4626(vaultInfo, vaultTokenBalance);
+        }
+        else if(vaultInfo.vaultType == VaultType.AaveV3) {
+            return _previewMaxWithdrawAaveV3(vaultInfo, vaultTokenBalance);
+        }
+        else {
+            revert UnsupportedVaultType();
+        }
+    }
+
+    /**
+     * @notice Previews a max withdraw from an ERC4626 vault
+     * @param vaultInfo The vault info
+     * @param vaultTokenBalance The balance of the BoringVault in the investment vault token
+     * @return amount The max amount returned in a withdraw
+     */
+    function _previewMaxWithdrawERC4626(VaultInfo memory vaultInfo, uint256 vaultTokenBalance) internal view returns (uint256 amount) {
+        // preview redeem of the entire balance
+        return ERC4626(vaultInfo.vault).previewRedeem(vaultTokenBalance);
+    }
+
+    /**
+     * @notice Previews a max withdraw from an Aave V3 pool
+     * @param vaultInfo The vault info
+     * @param vaultTokenBalance The balance of the BoringVault in the investment vault token
+     * @return amount The max amount returned in a withdraw
+     */
+    function _previewMaxWithdrawAaveV3(VaultInfo memory vaultInfo, uint256 vaultTokenBalance) internal view returns (uint256 amount) {
+        // aTokens are 1:1 with the underlying asset
+        return vaultTokenBalance;
     }
 }
