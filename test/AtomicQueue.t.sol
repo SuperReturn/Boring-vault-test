@@ -16,6 +16,57 @@ import {TellerWithMultiAssetSupport} from "src/base/Roles/TellerWithMultiAssetSu
 import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {ERC4626} from "@solmate/tokens/ERC4626.sol";
+import {Investor} from "src/atomic-queue/Investor.sol";
+
+/// @title MockERC4626VaultAQ
+/// @notice Mock ERC4626 vault for AtomicQueue integration tests
+contract MockERC4626VaultAQ is ERC4626 {
+    constructor(ERC20 _asset) ERC4626(_asset, "Mock ERC4626 Vault", "mVAULT") {}
+
+    function totalAssets() public view override returns (uint256) {
+        return asset.balanceOf(address(this));
+    }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+}
+
+/// @title MockATokenAQ
+/// @notice Mock Aave aToken for AtomicQueue integration tests
+contract MockATokenAQ is ERC20 {
+    address public immutable _pool;
+    address public immutable _underlyingAsset;
+
+    constructor(address pool_, address underlyingAsset_) ERC20("Mock aToken", "aUSDC", 6) {
+        _pool = pool_;
+        _underlyingAsset = underlyingAsset_;
+    }
+
+    function POOL() external view returns (address) {
+        return _pool;
+    }
+
+    function UNDERLYING_ASSET_ADDRESS() external view returns (address) {
+        return _underlyingAsset;
+    }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+}
+
+/// @title MockSakePoolAQ
+/// @notice Mock Sake/Aave pool for AtomicQueue integration tests
+contract MockSakePoolAQ {
+    constructor() {}
+
+    function withdraw(address asset, uint256 amount, address to) external returns (uint256) {
+        SafeTransferLib.safeTransfer(ERC20(asset), to, amount);
+        return amount;
+    }
+}
 
 /// @title MockUSDC
 /// @notice Mock USDC token for testing
@@ -64,6 +115,8 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
     uint8 public constant QUEUE_ROLE = 4;
     uint8 public constant ADMIN_ROLE = 5;
     uint8 public constant WITHDRAW_ROLE = 6;
+    uint8 public constant INVESTOR_ROLE = 7;
+    uint8 public constant QUEUE_INVESTOR_ROLE = 8;
 
     TellerWithMultiAssetSupport public teller;
     AccountantWithRateProviders public accountant;
@@ -108,6 +161,17 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
     );
 
     event MaturityTimeUpdated(uint256 oldMaturityTime, uint256 newMaturityTime);
+    event InvestorUpdated(address newInvestor);
+    event InstantWithdraw(
+        address indexed user,
+        address indexed offerToken,
+        address indexed wantToken,
+        uint256 offerAmount,
+        uint256 wantAmount,
+        uint256 timestamp
+    );
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
 
     uint256 constant DEFAULT_MATURITY_TIME = 1 hours;
 
@@ -282,11 +346,19 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         });
         atomicQueue.updateAtomicRequest(req);
         reqs[0] = req;
+
+        uint256 userSharesBeforeCancel = boringVault.balanceOf(user);
+        uint256 solverSharesBeforeCancel = boringVault.balanceOf(address(atomicSolverV4));
+
+        // Expect Transfer: shares solver→user
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(address(atomicSolverV4), user, 1_000e6);
+
         atomicQueue.cancelAtomicRequestByAdmin(reqs);
 
-        // check the asset and share amount
-        assertEq(ERC20(req.offer).balanceOf(address(atomicSolverV4)), 0);
-        assertEq(ERC20(req.offer).balanceOf(address(user)), userUSDCInitialBalance);
+        // check the asset and share amount (before/after diff)
+        assertEq(boringVault.balanceOf(address(atomicSolverV4)), solverSharesBeforeCancel - 1_000e6, "solver shares decreased");
+        assertEq(boringVault.balanceOf(user), userSharesBeforeCancel + 1_000e6, "user shares restored");
 
         // Verify request was removed
         (bytes32[] memory requestIdsAfter,) = atomicQueue.getExistingWithdrawRequests();
@@ -481,6 +553,10 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
     //============================== USER FUNCTIONS TESTS ================================
     function testUpdateAtomicRequest() external {
         vm.startPrank(user);
+
+        uint256 userSharesBefore = boringVault.balanceOf(user);
+        uint256 solverSharesBefore = boringVault.balanceOf(address(atomicSolverV4));
+
         AtomicRequest memory req = AtomicRequest({
             deadline: uint64(block.timestamp + 1),
             creationTime: uint64(block.timestamp),
@@ -489,11 +565,16 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
             offer: address(boringVault),
             want: address(USDC)
         });
+
+        // Expect Transfer: shares user→solver
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(user, address(atomicSolverV4), 1_000e6);
+
         atomicQueue.updateAtomicRequest(req);
 
-        // check the asset and share amount
-        assertEq(ERC20(req.offer).balanceOf(address(atomicSolverV4)), 1_000e6);
-        assertEq(ERC20(req.offer).balanceOf(address(user)), userUSDCInitialBalance - 1_000e6);
+        // check the asset and share amount (before/after diff)
+        assertEq(boringVault.balanceOf(address(atomicSolverV4)), solverSharesBefore + 1_000e6, "solver shares increased");
+        assertEq(boringVault.balanceOf(user), userSharesBefore - 1_000e6, "user shares decreased");
 
         vm.stopPrank();
     }
@@ -519,7 +600,12 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         assertEq(atomicQueue.withdrawInProgressAmount(address(boringVault), address(USDC)), 1_000e6);
         assertEq(atomicQueue.getAtomicRequestById(keccak256(abi.encode(req))).user, user);
 
-        // Cancel request
+        uint256 userSharesBeforeCancel = boringVault.balanceOf(user);
+        uint256 solverSharesBeforeCancel = boringVault.balanceOf(address(atomicSolverV4));
+
+        // Cancel request — expect Transfer (shares solver→user) and AtomicRequestCancelled event
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(address(atomicSolverV4), user, 1_000e6);
         vm.expectEmit(true, true, true, true);
         emit AtomicRequestCancelled(
             keccak256(abi.encode(req)),
@@ -528,9 +614,9 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
 
         atomicQueue.cancelAtomicRequest(req);
 
-        // check the asset and share amount
-        assertEq(ERC20(req.offer).balanceOf(address(atomicSolverV4)), 0);
-        assertEq(ERC20(req.offer).balanceOf(address(user)), userUSDCInitialBalance);
+        // check the asset and share amount (before/after diff)
+        assertEq(boringVault.balanceOf(address(atomicSolverV4)), solverSharesBeforeCancel - 1_000e6, "solver shares decreased");
+        assertEq(boringVault.balanceOf(user), userSharesBeforeCancel + 1_000e6, "user shares restored");
 
         // Verify request was removed
         (bytes32[] memory requestIdsAfter,) = atomicQueue.getExistingWithdrawRequests();
@@ -908,9 +994,19 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         // Warp past maturity time
         vm.warp(block.timestamp + atomicQueue.maturityTime() + 1);
 
+        uint256 userSharesBefore = boringVault.balanceOf(user);
+        uint256 userUSDCBefore = USDC.balanceOf(user);
+        uint256 vaultUSDCBefore = USDC.balanceOf(address(boringVault));
+
         atomicSolverV4.redeemSolve(
             atomicQueue, 0, type(uint256).max, teller, req
         );
+
+        // User received USDC (rate = 1e6, so 1:1)
+        assertEq(USDC.balanceOf(user), userUSDCBefore + 1_000e6, "user received USDC");
+        assertEq(USDC.balanceOf(address(boringVault)), vaultUSDCBefore - 1_000e6, "vault USDC decreased");
+        // Shares were already with solver, user shares unchanged
+        assertEq(boringVault.balanceOf(user), userSharesBefore, "user shares unchanged");
 
         vm.stopPrank();
     }
@@ -969,20 +1065,43 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
 
         skip(atomicQueue.maturityTime() + 1);
 
+        uint256 userSharesBefore = boringVault.balanceOf(user);
+        uint256 userUSDCBefore = USDC.balanceOf(user);
+        uint256 vaultUSDCBefore = USDC.balanceOf(address(boringVault));
+
+        // Expect Transfer events: shares user→queue, share burn, USDC vault→queue, USDC queue→user
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(user, address(atomicQueue), 1e6);
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(address(atomicQueue), address(0), 1e6);
+        vm.expectEmit(true, true, true, true, address(USDC));
+        emit Transfer(address(boringVault), address(atomicQueue), 1e6);
+        vm.expectEmit(true, true, true, true, address(USDC));
+        emit Transfer(address(atomicQueue), user, 1e6);
+
+        // Expect InstantWithdraw event
+        vm.expectEmit(true, true, true, true, address(atomicQueue));
+        emit InstantWithdraw(user, address(boringVault), address(USDC), 1e6, 1e6, block.timestamp);
+
         // instant withdraw
         atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, 1e6, 0, teller);
-        // Check the usdc and vault share amount
-        assertEq(USDC.balanceOf(user), 1e6);
-        assertEq(USDC.balanceOf(address(boringVault)), userUSDCInitialBalance - 1e6);
-        assertEq(boringVault.balanceOf(user), userUSDCInitialBalance - (userUSDCInitialBalance - 1000e6) - 1e6);
+
+        // Check the usdc and vault share amount (before/after diff)
+        assertEq(USDC.balanceOf(user), userUSDCBefore + 1e6, "user USDC increased");
+        assertEq(USDC.balanceOf(address(boringVault)), vaultUSDCBefore - 1e6, "vault USDC decreased");
+        assertEq(boringVault.balanceOf(user), userSharesBefore - 1e6, "user shares decreased");
 
         // all the remaining requests should can still be solved
+        uint256 userUSDCBeforeSolve = USDC.balanceOf(user);
+        uint256 vaultUSDCBeforeSolve = USDC.balanceOf(address(boringVault));
+        uint256 userSharesBeforeSolve = boringVault.balanceOf(user);
+
         atomicSolverV4.redeemSolve(
             atomicQueue, 0, type(uint256).max, teller, req1
         );
-        assertEq(USDC.balanceOf(user), userUSDCInitialBalance - 1000e6 + 1e6);
-        assertEq(USDC.balanceOf(address(boringVault)), 1000e6 - 1e6);
-        assertEq(boringVault.balanceOf(user), 1000e6 - 1e6);
+        assertEq(USDC.balanceOf(user), userUSDCBeforeSolve + (userUSDCInitialBalance - 1000e6), "user USDC after solve");
+        assertEq(USDC.balanceOf(address(boringVault)), vaultUSDCBeforeSolve - (userUSDCInitialBalance - 1000e6), "vault USDC after solve");
+        assertEq(boringVault.balanceOf(user), userSharesBeforeSolve, "user shares unchanged by solve");
 
         vm.stopPrank();
     }
@@ -992,21 +1111,92 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         uint256 discount = 500; // 0.05%
         atomicQueue.setDiscount(discount);
 
+        uint256 offerAmount = 1000e6;
+        uint256 fullAssetsOut = offerAmount; // rate = 1e6, so 1:1
+        uint256 discountedAmount = fullAssetsOut.mulDivDown(1e6 - discount, 1e6);
+        uint256 excess = fullAssetsOut - discountedAmount;
+
+        uint256 userSharesBefore = boringVault.balanceOf(user);
+        uint256 userUSDCBefore = USDC.balanceOf(user);
+        uint256 vaultUSDCBefore = USDC.balanceOf(address(boringVault));
+
+        // Expect Transfer events: shares user→queue, share burn, USDC vault→queue(full), excess→vault, discounted→user
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(user, address(atomicQueue), offerAmount);
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(address(atomicQueue), address(0), offerAmount);
+        vm.expectEmit(true, true, true, true, address(USDC));
+        emit Transfer(address(boringVault), address(atomicQueue), fullAssetsOut);
+        vm.expectEmit(true, true, true, true, address(USDC));
+        emit Transfer(address(atomicQueue), address(boringVault), excess);
+        vm.expectEmit(true, true, true, true, address(USDC));
+        emit Transfer(address(atomicQueue), user, discountedAmount);
+
+        // Expect InstantWithdraw event
+        vm.expectEmit(true, true, true, true, address(atomicQueue));
+        emit InstantWithdraw(user, address(boringVault), address(USDC), offerAmount, discountedAmount, block.timestamp);
+
         // instant withdraw
-        atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, 1000e6, 0, teller);
-        // Check the usdc and vault share amount
-        assertEq(USDC.balanceOf(user), uint256(1000e6).mulDivDown(1e6 - discount, 1e6));
-        assertEq(USDC.balanceOf(address(boringVault)), userUSDCInitialBalance - 1000e6 + uint256(1000e6).mulDivDown(discount, 1e6));
-        assertEq(boringVault.balanceOf(user), userUSDCInitialBalance - 1000e6);
+        atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, offerAmount, 0, teller);
+
+        // Check the usdc and vault share amount (before/after diff)
+        assertEq(USDC.balanceOf(user), userUSDCBefore + discountedAmount, "user received discounted USDC");
+        assertEq(USDC.balanceOf(address(boringVault)), vaultUSDCBefore - fullAssetsOut + excess, "vault USDC decreased minus excess");
+        assertEq(boringVault.balanceOf(user), userSharesBefore - offerAmount, "user shares decreased");
 
         vm.stopPrank();
     }
 
     function testInstantWithdrawWithDifferentWant() external {
-    // TODO
+        // Deploy 18-decimal asset with 2x rate (1 quote = 2 USDC)
+        MockERC20Decimals newAsset = new MockERC20Decimals("Mock 18 Asset", "M18", 18);
+        ConstantRateProvider doublePrice = new ConstantRateProvider(2e18);
+
+        teller.addAsset(newAsset);
+        accountant.setRateProviderData(newAsset, false, address(doublePrice));
+
+        // Seed boringVault with the 18-decimal asset
+        deal(address(newAsset), address(boringVault), 10_000e18);
+
+        vm.startPrank(user);
+
+        uint256 offerAmount = 100e6; // 100 vault shares (6 decimals)
+        // exchangeRate = 1e6 (USDC base decimals)
+        // exchangeRateInQuoteDecimals = changeDecimals(1e6, 6, 18) = 1e18
+        // rateInQuote = 1e18 * 1e18 / 2e18 = 0.5e18
+        // assetsOut = offerAmount * rateInQuote / ONE_SHARE = 100e6 * 0.5e18 / 1e6 = 50e18
+        // discount is 0, so user receives 50e18
+        uint256 expectedOut = 50e18;
+
+        uint256 userSharesBefore = boringVault.balanceOf(user);
+        uint256 userNewAssetBefore = newAsset.balanceOf(user);
+        uint256 vaultNewAssetBefore = newAsset.balanceOf(address(boringVault));
+
+        // Expect Transfer events: shares user→queue, share burn, newAsset vault→queue, newAsset queue→user
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(user, address(atomicQueue), offerAmount);
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(address(atomicQueue), address(0), offerAmount);
+        vm.expectEmit(true, true, true, true, address(newAsset));
+        emit Transfer(address(boringVault), address(atomicQueue), expectedOut);
+        vm.expectEmit(true, true, true, true, address(newAsset));
+        emit Transfer(address(atomicQueue), user, expectedOut);
+
+        // Expect InstantWithdraw event
+        vm.expectEmit(true, true, true, true, address(atomicQueue));
+        emit InstantWithdraw(user, address(boringVault), address(newAsset), offerAmount, expectedOut, block.timestamp);
+
+        atomicQueue.instantWithdraw(ERC20(address(boringVault)), ERC20(address(newAsset)), offerAmount, 0, teller);
+
+        // Check balance diffs
+        assertEq(newAsset.balanceOf(user), userNewAssetBefore + expectedOut, "User should receive 50e18 of 18-decimal asset");
+        assertEq(newAsset.balanceOf(address(boringVault)), vaultNewAssetBefore - expectedOut, "vault newAsset decreased");
+        assertEq(boringVault.balanceOf(user), userSharesBefore - offerAmount, "Shares should be burned");
+
+        vm.stopPrank();
     }
 
-    function testInstantWithdrawInsufficientLiquidity() external {
+    function testInstantWithdrawInsufficientLiquidityNoInvestor() external {
         vm.startPrank(user);
 
         // update several requests and solve one of them
@@ -1022,9 +1212,33 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
 
         skip(atomicQueue.maturityTime() + 1);
 
-        // instant withdraw
-        vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__InsufficientVaultLiquidity.selector, userUSDCInitialBalance - 1e6 + 1000e6, userUSDCInitialBalance));
+        // instant withdraw — investor is not set, so reverts with InvestorNotSet
+        vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__InvestorNotSet.selector));
         atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, 1000e6, 0, teller);
+
+        vm.stopPrank();
+    }
+
+    function testInstantWithdrawInsufficientLiquidity() external {
+        (Investor _investor, MockERC4626VaultAQ _mockVault) = _setupInvestor();
+
+        // Only 50 USDC in the ERC4626 vault — not enough to cover the gap
+        deal(address(USDC), address(boringVault), 100e6);
+        deal(address(_mockVault), address(boringVault), 50e6);
+        deal(address(USDC), address(_mockVault), 50e6);
+
+        vm.startPrank(user);
+
+        // Try to withdraw 500 shares = 500 USDC needed, only 150 available total
+        uint256 offerAmount = 500e6;
+        uint256 totalRequired = offerAmount; // no pending, discount=0, rate=1
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AtomicQueue.AtomicQueue__InsufficientVaultLiquidity.selector, totalRequired, 150e6
+            )
+        );
+        atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, offerAmount, 0, teller);
 
         vm.stopPrank();
     }
@@ -1046,6 +1260,177 @@ contract AtomicQueueTest is Test, MerkleTreeHelper {
         uint256 minOutTooHigh = expectedOut + 1;
         vm.expectRevert(abi.encodeWithSelector(AtomicQueue.AtomicQueue__MinimumAssetsNotMet.selector));
         atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, amount, minOutTooHigh, teller);
+        vm.stopPrank();
+    }
+
+    // ========================================= INVESTOR INTEGRATION TESTS =========================================
+
+    function _setupInvestor()
+        internal
+        returns (Investor _investor, MockERC4626VaultAQ _mockVault)
+    {
+        _mockVault = new MockERC4626VaultAQ(ERC20(address(USDC)));
+        _investor = new Investor(address(this), rolesAuthority, address(boringVault));
+
+        // Grant Investor the manage(address,bytes,uint256) capability on BoringVault
+        rolesAuthority.setRoleCapability(
+            INVESTOR_ROLE,
+            address(boringVault),
+            bytes4(keccak256("manage(address,bytes,uint256)")),
+            true
+        );
+        rolesAuthority.setUserRole(address(_investor), INVESTOR_ROLE, true);
+
+        // Grant AtomicQueue the autoWithdrawal capability on Investor
+        rolesAuthority.setRoleCapability(
+            QUEUE_INVESTOR_ROLE, address(_investor), Investor.autoWithdrawal.selector, true
+        );
+        rolesAuthority.setUserRole(address(atomicQueue), QUEUE_INVESTOR_ROLE, true);
+
+        // Grant admin capability to set investor
+        rolesAuthority.setRoleCapability(ADMIN_ROLE, address(atomicQueue), AtomicQueue.setInvestor.selector, true);
+
+        // Set the investor on the queue
+        atomicQueue.setInvestor(address(_investor));
+
+        // Configure vault in investor
+        Investor.VaultInfo[] memory vaults = new Investor.VaultInfo[](1);
+        vaults[0] = Investor.VaultInfo({vaultType: Investor.VaultType.ERC4626, vault: address(_mockVault)});
+        _investor.setVaults(vaults);
+    }
+
+    function testSetInvestor() external {
+        Investor _investor = new Investor(address(this), rolesAuthority, address(boringVault));
+
+        vm.expectEmit(true, true, true, true);
+        emit InvestorUpdated(address(_investor));
+
+        atomicQueue.setInvestor(address(_investor));
+
+        assertEq(address(atomicQueue.investor()), address(_investor));
+    }
+
+    function testSetInvestorRequiresAuth() external {
+        address unauthorized = vm.addr(99);
+        vm.prank(unauthorized);
+        vm.expectRevert("UNAUTHORIZED");
+        atomicQueue.setInvestor(address(1));
+    }
+
+    function testSetInvestorToZero() external {
+        atomicQueue.setInvestor(address(0));
+        assertEq(address(atomicQueue.investor()), address(0));
+    }
+
+    function testInstantWithdrawInvestorFreesEnough() external {
+        (Investor _investor, MockERC4626VaultAQ _mockVault) = _setupInvestor();
+
+        // Drain most USDC from boringVault so it doesn't have enough
+        uint256 vaultUsdcBalance = USDC.balanceOf(address(boringVault));
+        // Keep only 100 USDC in the vault, need to withdraw 500 USDC worth of shares
+        uint256 amountToRemove = vaultUsdcBalance - 100e6;
+        // Move USDC out by dealing it away
+        deal(address(USDC), address(boringVault), 100e6);
+
+        // Put 1000 USDC into the ERC4626 vault as shares held by boringVault
+        deal(address(_mockVault), address(boringVault), 1_000e6);
+        deal(address(USDC), address(_mockVault), 1_000e6);
+
+        vm.startPrank(user);
+
+        uint256 offerAmount = 500e6;
+        uint256 userSharesBefore = boringVault.balanceOf(user);
+        uint256 userUSDCBefore = USDC.balanceOf(user);
+
+        // Expect share Transfer and InstantWithdraw event
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(user, address(atomicQueue), offerAmount);
+        vm.expectEmit(true, true, true, true, address(atomicQueue));
+        emit InstantWithdraw(user, address(boringVault), address(USDC), offerAmount, offerAmount, block.timestamp);
+
+        atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, offerAmount, 0, teller);
+
+        // Check balance diffs
+        assertEq(USDC.balanceOf(user), userUSDCBefore + offerAmount, "User receives 500 USDC");
+        assertEq(USDC.balanceOf(user) - userUSDCBefore, offerAmount, "USDC diff matches");
+        assertEq(boringVault.balanceOf(user), userSharesBefore - offerAmount, "Shares burned");
+
+        vm.stopPrank();
+    }
+
+    function testInstantWithdrawInvestorCannotFreeEnough() external {
+        (Investor _investor, MockERC4626VaultAQ _mockVault) = _setupInvestor();
+
+        // Vault has only 100 USDC, ERC4626 has only 50 USDC
+        deal(address(USDC), address(boringVault), 100e6);
+        deal(address(_mockVault), address(boringVault), 50e6);
+        deal(address(USDC), address(_mockVault), 50e6);
+
+        vm.startPrank(user);
+
+        // Try to withdraw 500 shares = 500 USDC needed, only 150 available total
+        uint256 offerAmount = 500e6;
+        uint256 totalRequired = offerAmount; // no pending, discount=0, rate=1
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AtomicQueue.AtomicQueue__InsufficientVaultLiquidity.selector, totalRequired, 150e6
+            )
+        );
+        atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, offerAmount, 0, teller);
+
+        vm.stopPrank();
+    }
+
+    function testInstantWithdrawWithInvestorAndDiscount() external {
+        (Investor _investor, MockERC4626VaultAQ _mockVault) = _setupInvestor();
+
+        uint256 discountPpm = 500; // 0.05%
+        atomicQueue.setDiscount(discountPpm);
+
+        // Create a pending withdrawal to inflate totalRequired beyond assetsOut,
+        // ensuring the investor frees enough USDC to cover the full undiscounted exit.
+        vm.startPrank(user);
+        AtomicRequest memory pendingReq = AtomicRequest({
+            deadline: uint64(block.timestamp + atomicQueue.maturityTime() * 2),
+            creationTime: uint64(block.timestamp),
+            offerAmount: uint96(100e6),
+            user: user,
+            offer: address(boringVault),
+            want: address(USDC)
+        });
+        atomicQueue.updateAtomicRequest(pendingReq);
+        vm.stopPrank();
+
+        // Set vault USDC low so investor is triggered
+        deal(address(USDC), address(boringVault), 10e6);
+        deal(address(_mockVault), address(boringVault), 2_000e6);
+        deal(address(USDC), address(_mockVault), 2_000e6);
+
+        vm.startPrank(user);
+
+        uint256 offerAmount = 200e6;
+        // assetsOut = 200e6 (rate=1). assetOutWithDiscount = 200e6 * (1e6 - 500) / 1e6 = 199_900_000
+        // pendingWithdrawAssets = 100e6. totalRequired = 199_900_000 + 100e6 = 299_900_000
+        // vaultBalance = 10e6 < 299_900_000 → investor triggered
+        // Investor frees 289_900_000. Post: 10e6 + 289_900_000 = 299_900_000. Passes check.
+        // exit needs 200e6 USDC from vault. 299_900_000 >= 200e6 ✓
+        uint256 expectedOut = uint256(offerAmount).mulDivDown(1e6 - discountPpm, 1e6);
+
+        uint256 userSharesBefore = boringVault.balanceOf(user);
+        uint256 userUSDCBefore = USDC.balanceOf(user);
+
+        // Expect share Transfer and InstantWithdraw event
+        vm.expectEmit(true, true, true, true, address(boringVault));
+        emit Transfer(user, address(atomicQueue), offerAmount);
+        vm.expectEmit(true, true, true, true, address(atomicQueue));
+        emit InstantWithdraw(user, address(boringVault), address(USDC), offerAmount, expectedOut, block.timestamp);
+
+        atomicQueue.instantWithdraw(ERC20(address(boringVault)), USDC, offerAmount, 0, teller);
+
+        // Check balance diffs
+        assertEq(USDC.balanceOf(user), userUSDCBefore + expectedOut, "User receives discounted amount");
+        assertEq(boringVault.balanceOf(user), userSharesBefore - offerAmount, "Shares burned");
         vm.stopPrank();
     }
 
