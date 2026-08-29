@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+//
 pragma solidity 0.8.21;
 
 import "forge-std/Script.sol";
@@ -9,31 +10,36 @@ import {AtomicQueue, AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
 import {Deployer} from "src/helper/Deployer.sol";
 import {ContractNames} from "resources/ContractNames.sol";
 import {MerkleTreeHelper} from "test/resources/MerkleTreeHelper/MerkleTreeHelper.sol";
+import {WithdrawZapTeller, ZapAtomicRequest} from "src/zaps/WithdrawZapTeller.sol";
 
-contract USDAICancelRequestScript is Script, SoneiumAddresses, ContractNames, MerkleTreeHelper {
+contract USDAICancelExpireRequestInWithdrawZapTellerScript is Script, SoneiumAddresses, ContractNames, MerkleTreeHelper {
     // Contract instances
     Deployer public deployer;
     BoringVault boringVault;
     AtomicQueue queue;
+    WithdrawZapTeller public withdrawZapTeller;
 
     function setUp() public {
         vm.createSelectFork("soneium");
         setSourceChainName("soneium");
         deployer = Deployer(getAddress(sourceChain, "deployerAddress"));
-        
+
         // Initialize contract instances
         boringVault = BoringVault(payable(previoussuperUSD));
         queue = AtomicQueue(deployer.getAddress(UsdaiVaultQueueName));
+        withdrawZapTeller = WithdrawZapTeller(0x5E305dcB433D80519Ce2B5cb0f6A05Edb42776d2);
     }
 
     function run() public {
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
-        address user = vm.addr(privateKey);
-        console.log("signer:", user);
+        address signer = vm.addr(privateKey);
+        console.log("signer:", signer);
 
-        vm.startBroadcast(privateKey);
-        
-        (bytes32[] memory requestIds, AtomicRequest[] memory requests) = queue.getExistingWithdrawRequests();
+        address user = 0x1b4862F983AA573518B612f1bb1579F4b02796CB;
+        ERC20 sSuperUSD = ERC20(withdrawZapTeller.sSuperUSD());
+
+        (bytes32[] memory requestIds, ZapAtomicRequest[] memory requests) =
+            withdrawZapTeller.getZapExistingWithdrawRequestsByUser(user);
 
         console.log("Current block.timestamp:", block.timestamp);
         console.log("requestIds length:", requestIds.length);
@@ -48,23 +54,27 @@ contract USDAICancelRequestScript is Script, SoneiumAddresses, ContractNames, Me
         }
         console.log("expired count:", expiredCount);
 
-        if (expiredCount > 0) {
-            AtomicRequest[] memory expiredRequests = new AtomicRequest[](expiredCount);
-            uint256 idx;
-            for (uint256 i = 0; i < requests.length; i++) {
-                if (block.timestamp > requests[i].deadline) {
-                    expiredRequests[idx] = requests[i];
-                    unchecked {
-                        ++idx;
-                    }
+        ZapAtomicRequest[] memory expiredRequests = new ZapAtomicRequest[](expiredCount);
+        uint256 idx;
+        for (uint256 i = 0; i < requests.length; i++) {
+            if (block.timestamp > requests[i].deadline) {
+                expiredRequests[idx] = requests[i];
+                unchecked {
+                    ++idx;
                 }
             }
-            console.log("expiredRequests length:", expiredRequests.length);
-            // cancelAtomicRequestByAdmin takes AtomicRequest[]; batch all expired in one call
-            queue.cancelAtomicRequestByAdmin(expiredRequests);
-            console.log("cancelAtomicRequestByAdmin done for", expiredCount, "expired requests");
         }
-        
+
+        uint256 balanceBefore = sSuperUSD.balanceOf(user);
+        console.log("user sSuperUSD balance before:", balanceBefore);
+
+        vm.startBroadcast(privateKey);
+        withdrawZapTeller.cancelZapAtomicRequestByAdmin(expiredRequests);
         vm.stopBroadcast();
+
+        uint256 balanceAfter = sSuperUSD.balanceOf(user);
+        console.log("user sSuperUSD balance after:", balanceAfter);
+        require(balanceAfter > balanceBefore, "user sSuperUSD balance not restored after cancel");
+        console.log("cancelZapAtomicRequestByAdmin done for", expiredCount, "expired requests");
     }
 }

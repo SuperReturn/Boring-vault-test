@@ -45,9 +45,10 @@ contract Strategist1 is Script, KatanaAddresses, MerkleTreeHelper, ContractNames
 
         ManageLeaf[] memory leafs = new ManageLeaf[](128);
 
-        address[] memory tokens = new address[](2);
-        tokens[0] = address(USDC);
-        tokens[1] = address(KAT);
+        address[] memory tokens = new address[](3);
+        tokens[0] = address(KAT);
+        tokens[1] = address(0x1e5eFCA3D0dB2c6d5C67a4491845c43253eB9e4e); // MORPHO
+        tokens[2] = address(0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36); // vbUSDC
 
         _addMerklLeafs(leafs, merklDistributor, tokens);
         setAddress(true, katana, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName));
@@ -60,9 +61,10 @@ contract Strategist1 is Script, KatanaAddresses, MerkleTreeHelper, ContractNames
         https://api.merkl.xyz/v4/users/0x15f3Ee2F609FBAe0bC48E3a071D66DD917C682EB/rewards?chainId=747474
         amount and proofs should be exactly same, otherwise it will revert
         */
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 6782;
-        amounts[1] = 248441523619179489;
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = 163494908335337677660;
+        amounts[1] = 285391386286908839;
+        amounts[2] = 2848733;
 
         // 1. Create merkle tree leaves for allowed actions
 
@@ -76,52 +78,78 @@ contract Strategist1 is Script, KatanaAddresses, MerkleTreeHelper, ContractNames
 
         bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
 
-        // 4. Prepare the action data
+        // // 4. Prepare the action data
         address[] memory targets = new address[](opsAmt);
         targets[0] = merklDistributor;
 
         bytes[] memory targetData = new bytes[](opsAmt);
 
-        address[] memory users = new address[](2);
+        address[] memory users = new address[](3);
         users[0] = address(vault);
         users[1] = address(vault);
+        users[2] = address(vault);
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = new bytes32[](16);
-        proofs[0][0]  = 0x15f9654b81b0e12c869988ee3eaae4200fd5467329e1fa7b842e9c3594c69c11;
-        proofs[0][1]  = 0x672c52feb62138b086d73c060c83c52c53370be289acd777ec0bfbe8f04ae5a2;
-        proofs[0][2]  = 0x6aa737fd618cdfe486f905f177b7ec63604575b099e25b6c4f70267ccb84f48e;
-        proofs[0][3]  = 0x443100ecddaf0e735350e476bfe3b25eb61bd0943d545b0ee3c9f331ac8b654b;
-        proofs[0][4]  = 0x9419966c7561d1d5c663a471c81adbc05d14ed5584bcbfc9bd4955d71e6e2bf3;
-        proofs[0][5]  = 0x672c36c97f3c048b28d2d9a539deb832ce74969a681e1f1d1f1dab04d3cefd57;
-        proofs[0][6]  = 0xf81fe3598acadef30d79111cb70d2ac94067dbce43cbd5ecc4afdd937d90bccb;
-        proofs[0][7]  = 0xcafcb00e5dbe7feab2edf62e8e66112a6698a5c279d3bb5ac6f2603f9a528f7a;
-        proofs[0][8]  = 0x1c3a2acca33bf16636de20ec6929395df6af07334234c9f6d9dc3980c7b79105;
-        proofs[0][9]  = 0x6ac9be6f0135921345e57f2f8ed92d84cc4819012f094d56cd1ff522b2153e8a;
-        proofs[0][10] = 0xa7973b99c44d6b9bb7de264c9ccb590b39c877a0a71d976ce612124342e9dad1;
-        proofs[0][11] = 0x2b7d3b78c8f6f9f4e4c33ec70a806b6287bc4816ef3472ba5e0147e7a87a5670;
-        proofs[0][12] = 0xeca9b08151b0c1649fff575d2bd94c503a2e39c189cbb312d037175b4fc19e37;
-        proofs[0][13] = 0xe0122b1a34e066bdeeea4e2894bedff4d982ef6c772a462e15ce2daf584f085e;
-        proofs[0][14] = 0x457f6125464bfc42dbad128c5adb536a9f47c567cb54593900ced4856924b741;
-        proofs[0][15] = 0x43ef9426487fee83ba692d9a6cd7ea89edc43799a5778734fe1fb2bd2394fc68;
+        bytes32[][] memory proofs = new bytes32[][](3);
 
-        proofs[1] = new bytes32[](16);
-        proofs[1][0]  = 0x08ccdfafe83c7c28b78198dd7a1ed86912d2b46af38c855af356733ca630b1c2;
-        proofs[1][1]  = 0xfc481649b30c35ea7035b227dc461abaedbe3a9e1abf915547099b2c70e26a2a;
-        proofs[1][2]  = 0xb1fac2cb99e723b6fc474c3ff0edc857e27f8e80e98d2d84dcfb806c5050b8bd;
-        proofs[1][3]  = 0x09b4b9991e4dfa2564822daab6d664b583815ffaf57789dd17d12d9532c511c6;
-        proofs[1][4]  = 0x084ae9d5eda5c80ea5d4fe73bb8711dfa1077a83a11a5add1b0004155ea1b5e6;
-        proofs[1][5]  = 0xb16a9530cac1665588a25ce4f1c4a9bd6205d856784b4f68e5f29f7cdc0e0b7e;
-        proofs[1][6]  = 0x004adb594cf7a9057316431472e6b1b15d0b5a97285a614924074d1683f01a72;
-        proofs[1][7]  = 0xec60e57137a489399449bc0c69ce53b2babc63eec88efebedcb95756ebb7ff0b;
-        proofs[1][8]  = 0x33fcd6cce09c57c924244e08aca0404da61f50124deb0de34b30bb1b1d8c8eaf;
-        proofs[1][9]  = 0x4185a4ead7305e157fd1d769c90e5060b6411efd6b8dca8d5a9f5601df6114c1;
-        proofs[1][10] = 0x604cf35c73e375717b14bab4fcbd02d5877549f1e70abda2584515f952f760e1;
-        proofs[1][11] = 0x818fe82099a729c3e92801fcdcbf12da18fb3d0b17a256f14faa7cfba40603de;
-        proofs[1][12] = 0xa1e038feb188b2fd67a2675d1bdba3f30ad18db546ad559b64204706aa52c2be;
-        proofs[1][13] = 0xe0122b1a34e066bdeeea4e2894bedff4d982ef6c772a462e15ce2daf584f085e;
-        proofs[1][14] = 0x457f6125464bfc42dbad128c5adb536a9f47c567cb54593900ced4856924b741;
-        proofs[1][15] = 0x43ef9426487fee83ba692d9a6cd7ea89edc43799a5778734fe1fb2bd2394fc68;
+        // Proofs for KAT
+        proofs[0] = new bytes32[](17);
+        proofs[0][0]  = 0x75a4e34c7d4b61835e77bbc79fc48e71f4133a222305825ca7d9b4b076f51296;
+        proofs[0][1]  = 0x9f7e456e93781a9f0a5ef0345532dbbe0bf02fecb44318209c0aad85eb20c583;
+        proofs[0][2]  = 0x8f21145866a97639b8a5879cd3bf7a31dece50ada1000626ffdbcb0fb2e3c46b;
+        proofs[0][3]  = 0x327ec038ee6f003ca02dd846d8c636bc3f470586ab365c1809d27947eb97adda;
+        proofs[0][4]  = 0xc0a0278b6e4a3b9ea98451148c5bcb88d94f5e1fe54174b6af554e960aed4c30;
+        proofs[0][5]  = 0x42d94e51e1d8939e528d77c2e4a0ee82ac651523b049750cbead8ce86fcd36cb;
+        proofs[0][6]  = 0xef3cc42171bb32ea3d4d14d6060f895c080f18ba25b44aaab4ce74e54696c939;
+        proofs[0][7]  = 0xf4658864b75fb80b570069abbcf3da0af3b527d9b20bd391fb5479837f045829;
+        proofs[0][8]  = 0x1df33777ff4960abd040d5ac36277843148f87d165b516a24e61c6be6409e931;
+        proofs[0][9]  = 0x578abac3b0ba834f365d1ebf704c588ea9414b2418d2d4b9ab1ee38051c95555;
+        proofs[0][10] = 0x3a4934d3fefb2b1875e569a5cff9040a1e904e0d0c40f90b12a791482812851f;
+        proofs[0][11] = 0x826490675ef811a0b41a8d223ff4080b2ec7c6335b622082667520060c911509;
+        proofs[0][12] = 0x1a0b1d276b4c22e76bf15460b671c37571bd9f10805051941b9699e2e1a2dca3;
+        proofs[0][13] = 0xf539cd22623e66f8a874fe5f7b42aaf7d27d625d13f655dc3a444ef19abe8410;
+        proofs[0][14] = 0x2ebf5f86f351f4dc6936210674bd61ff0eb4a49aec3bf8d3573b55233a6fd32d;
+        proofs[0][15] = 0xe774c4fdd0aaa4c6c06887d70d65e4d8c060804486395a55cd2a149af49af715;
+        proofs[0][16] = 0x8639384827944c54b5805199464059db8f5f4f732a7d996ae9ea9817e553fbfe;
+
+        // Proofs for MORPHO
+        proofs[1] = new bytes32[](17);
+        proofs[1][0]  = 0x9596f73ea9f631cd562ba4628b04c300117eb25f30fd0dc1177570f7e33ccb70;
+        proofs[1][1]  = 0xef57da698a29a32d7ed0abc58286863436bdb88ac1e3049a8364a542f8245752;
+        proofs[1][2]  = 0x872d1632550a270025428fb36f395e3e097ffe987635e8ed7a0dd1d8462441ae;
+        proofs[1][3]  = 0x54d04f9776b17a4c02c581c756582c6d050707ce633f0893864e8fa256bc9135;
+        proofs[1][4]  = 0x89948b030ac23c5435515ee597741479e2d508798e1013c820e801dd2aa9345b;
+        proofs[1][5]  = 0xe1008ca572f231b06456dfc6e8fa168850ecfc3ad7579ac221e35f09f25fef08;
+        proofs[1][6]  = 0xeaeb21a75977f9918a877cc254f9b3557dd5746277dfdbf7b198db88915c9f7b;
+        proofs[1][7]  = 0x4cab3c2d926df5e3f5b5238714b81a023a835584f5129b7b41bac7e7ef2197ef;
+        proofs[1][8]  = 0x4c6a4c3b5c007f4c0313ee4558abb29d8bc16baeab72f1892d9d42eca6223491;
+        proofs[1][9]  = 0xd39e1f168c5617e228c7b2fa811474177612d5db06e249afe22479a56797e957;
+        proofs[1][10] = 0x62bd14d099dc2997dfad86dbc099c736d4110198bd3c7d680c60d5c412cc09e1;
+        proofs[1][11] = 0x80453185d54236257e13af4d87593b310925f97762b9f73c0b60057bb80caa6d;
+        proofs[1][12] = 0x9b21fb0ed4ea2f2b6eaf3230748facfbc389e0718877512d72b25429b854428a;
+        proofs[1][13] = 0xeef593e68b6230311b3a3173b9b161d68b99d4f91d799650c760294d4d7c8089;
+        proofs[1][14] = 0x2ebf5f86f351f4dc6936210674bd61ff0eb4a49aec3bf8d3573b55233a6fd32d;
+        proofs[1][15] = 0xe774c4fdd0aaa4c6c06887d70d65e4d8c060804486395a55cd2a149af49af715;
+        proofs[1][16] = 0x8639384827944c54b5805199464059db8f5f4f732a7d996ae9ea9817e553fbfe;
+
+        // Proofs for vbUSDC
+        proofs[2] = new bytes32[](17);
+        proofs[2][0]  = 0x6e157d4c7496e7c33f2e3d40ba8b954acd1e0b01a2373f1b2231551aeda33452;
+        proofs[2][1]  = 0x730aa8b8e5e88d06ae4d62814ab16b7144c8256cd45237fe9bf764cecedf9656;
+        proofs[2][2]  = 0x3e80e99abca1319431c66ea8dec01c892e33ef78913be92de49def38b38d0853;
+        proofs[2][3]  = 0x3b6d5037e0e53e50566ab3a684d756ff4d69751313f6612572644e625461a7cb;
+        proofs[2][4]  = 0x08c2aaf7b4ac393f577a83682a0a5ec1f284e00158594b3a72b770fdef0d1093;
+        proofs[2][5]  = 0x2ca55faec25e7dec1ec816c482e6295e1951bff8976771d744ef2cd7af52b496;
+        proofs[2][6]  = 0xc167f5a3c8663dfe746988dc6f331dcb0e02cbc948dc567193bf3dc76698b9d8;
+        proofs[2][7]  = 0x6c1cfc271823eee848ea3c570aba03cef63fb23d9f4c008c2f13f5c54999e9cd;
+        proofs[2][8]  = 0xc07809ba243a275fc0313eda2be93238957838a61ce92553547e4e16f82278c2;
+        proofs[2][9]  = 0x1b915acffb82e8496ed86a784639aa6398ab28e8be5e90fba9ae9eb58f666307;
+        proofs[2][10] = 0x5e5ad3c6099e7161d0756a6b13853ec91965ba3291cc1b3a4358cd97b20306db;
+        proofs[2][11] = 0xa84c1be9db2d79929021bec5f4690c230f0fa7aec0e184e92e9fc4464b3afa93;
+        proofs[2][12] = 0x27267e02a1cbc9b28faed83e9bc995a92df525aa6c43425086dfc99849a45dda;
+        proofs[2][13] = 0xf539cd22623e66f8a874fe5f7b42aaf7d27d625d13f655dc3a444ef19abe8410;
+        proofs[2][14] = 0x2ebf5f86f351f4dc6936210674bd61ff0eb4a49aec3bf8d3573b55233a6fd32d;
+        proofs[2][15] = 0xe774c4fdd0aaa4c6c06887d70d65e4d8c060804486395a55cd2a149af49af715;
+        proofs[2][16] = 0x8639384827944c54b5805199464059db8f5f4f732a7d996ae9ea9817e553fbfe;
 
         targetData[0] = abi.encodeWithSignature(
             "claim(address[],address[],uint256[],bytes32[][])",
@@ -137,17 +165,17 @@ contract Strategist1 is Script, KatanaAddresses, MerkleTreeHelper, ContractNames
 
 // Morpho operation
         // setAddress(true, katana, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName));
-        // // 1. Create merkle tree leaves for allowed actions
+        // 1. Create merkle tree leaves for allowed actions
         // ManageLeaf[] memory leafs = new ManageLeaf[](128);
 
         // _addKatanaMorphoLeafs(leafs, address(vault), morphoVaults);
 
-        // // 2. Generate the merkle tree and get the root
+        // 2. Generate the merkle tree and get the root
         // bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
-        // // 3. Generate proofs for the actions you want to execute. Check USDAILeafs.json for the leafs operation order
-        // // Approve USDC
-        // // Deposit USDC
+        // 3. Generate proofs for the actions you want to execute. Check USDAILeafs.json for the leafs operation order
+        // Approve USDC
+        // Deposit USDC
         // uint256 opsAmt = 2;
         // ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
         // manageLeafs[0] = leafs[0];
@@ -155,7 +183,7 @@ contract Strategist1 is Script, KatanaAddresses, MerkleTreeHelper, ContractNames
 
         // bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
 
-        // // 4. Prepare the action data
+        // 4. Prepare the action data
         // address[] memory targets = new address[](opsAmt);
         // targets[0] = getAddress(sourceChain, "USDC");
         // targets[1] = morphoVaults[0];
@@ -174,12 +202,12 @@ contract Strategist1 is Script, KatanaAddresses, MerkleTreeHelper, ContractNames
         //     address(vault)
         // );
 
-        // // targetData[1] = abi.encodeWithSignature(
-        // //     "withdraw(uint256,address,address)",
-        // //     1e6, // assets
-        // //     address(vault), // receiver
-        // //     address(vault)  // owner
-        // // );
+        // targetData[1] = abi.encodeWithSignature(
+        //     "withdraw(uint256,address,address)",
+        //     1e6, // assets
+        //     address(vault), // receiver
+        //     address(vault)  // owner
+        // );
 
         // address[] memory decodersAndSanitizers = new address[](opsAmt);  
         // decodersAndSanitizers[0] = deployer.getAddress(UsdaiMorphoDecoderAndSanitizerName);
@@ -188,12 +216,12 @@ contract Strategist1 is Script, KatanaAddresses, MerkleTreeHelper, ContractNames
 
         uint256[] memory values = new uint256[](opsAmt);
         // extra
-        bytes32 merkleRoot = manageTree[manageTree.length - 1][0];
+        // bytes32 merkleRoot = manageTree[manageTree.length - 1][0];
 
-        _generateLeafs("./leafs/Strategist1KatanaLeafs.json", leafs, merkleRoot, manageTree);
+        // _generateLeafs("./leafs/Strategist1KatanaLeafs.json", leafs, merkleRoot, manageTree);
 
-        // try to less the var number to prevent "Stack too deep" error
-        manager.setManageRoot(vm.addr(vm.envUint("KATANA_STRATEGIST")), merkleRoot);
+        // // try to less the var number to prevent "Stack too deep" error
+        // manager.setManageRoot(vm.addr(vm.envUint("KATANA_STRATEGIST")), merkleRoot);
 
         vm.stopBroadcast();
         vm.startBroadcast(vm.envUint("KATANA_STRATEGIST"));

@@ -86,12 +86,12 @@ contract SakeOp is Script, SoneiumAddresses, MerkleTreeHelper, ContractNames {
         uint256 opsAmt = 2;
         ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
         manageLeafs[0] = leafs[0];
-        manageLeafs[1] = leafs[1];
+        // manageLeafs[1] = leafs[1];
         // manageLeafs[2] = leafs[2];
         // manageLeafs[3] = leafs[3];
         // manageLeafs[4] = leafs[7];
         // manageLeafs[5] = leafs[9];
-        // manageLeafs[6] = leafs[5];
+        manageLeafs[1] = leafs[4];
         bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
 
         // 4. Prepare the action data
@@ -113,11 +113,11 @@ contract SakeOp is Script, SoneiumAddresses, MerkleTreeHelper, ContractNames {
         // uint256 interestRateMode = 2;
         targetData[0] = abi.encodeWithSignature("approve(address,uint256)", getAddress(sourceChain, "v3Pool"), type(uint256).max);
         // targetData[1] = abi.encodeWithSignature("approve(address,uint256)", getAddress(sourceChain, "v3Pool"), type(uint256).max);
-        targetData[1] = abi.encodeWithSignature("supply(address,uint256,address,uint16)", getAddress(sourceChain, "USDC"), 1e6, address(vault), 0);
+        // targetData[1] = abi.encodeWithSignature("supply(address,uint256,address,uint16)", getAddress(sourceChain, "USDC"), 1e6, address(vault), 0);
         // targetData[3] = abi.encodeWithSignature("supply(address,uint256,address,uint16)", getAddress(sourceChain, "ASTR"), 4e18, address(vault), 0);
         // targetData[4] = abi.encodeWithSignature("borrow(address,uint256,uint256,uint16,address)", getAddress(sourceChain, "ASTR"), 3e18, 2, 0, address(vault));
         // targetData[5] = abi.encodeWithSignature("repay(address,uint256,uint256,address)", getAddress(sourceChain, "ASTR"), 2e18, 2, address(vault));
-        // targetData[1] = abi.encodeWithSignature("withdraw(address,uint256,address)", getAddress(sourceChain, "USDC"), 21472e6, address(vault));
+        targetData[1] = abi.encodeWithSignature("withdraw(address,uint256,address)", getAddress(sourceChain, "USDC"), 100000e6, address(vault));
 
         address[] memory decodersAndSanitizers = new address[](opsAmt);  
         decodersAndSanitizers[0] = deployer.getAddress(UsdaiSakeDecoderAndSanitizerName);

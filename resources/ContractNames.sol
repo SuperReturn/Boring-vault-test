@@ -65,4 +65,7 @@ contract ContractNames {
     string public constant WithdrawZapTellerName = "Withdraw Zap Teller V1.4";
 
     string public constant airVaultName = "AirVault V1.0";
+
+    // wrappers
+    string public constant SuperUSDWrapperName = "SuperUSD Wrapper V1.0";
 }

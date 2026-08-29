@@ -123,47 +123,47 @@ contract Strategist1 is Script, PlumeAddresses, MerkleTreeHelper, ContractNames 
         // decodersAndSanitizers[0] = deployer.getAddress(UsdaiMerklDecoderAndSanitizerName);
 
 // Rooster operation
-        uint256 amountInput = 1 * 1e15;
+    //     uint256 amountInput = 1 * 1e15;
 
-        setAddress(true, plume, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiRoosterDecoderAndSanitizerName));
+    //     setAddress(true, plume, "rawDataDecoderAndSanitizer", deployer.getAddress(UsdaiRoosterDecoderAndSanitizerName));
 
-        // 1. Create merkle tree leaves for allowed actions
+    //     // 1. Create merkle tree leaves for allowed actions
 
-        // 2. Generate the merkle tree and get the root
-        bytes32[][] memory manageTree = _generateMerkleTree(leafs);
+    //     // 2. Generate the merkle tree and get the root
+    //     bytes32[][] memory manageTree = _generateMerkleTree(leafs);
 
-        // 3. Generate proofs for the actions you want to execute. Check USDAILeafs.json for the leafs operation order
-        // Approve PUSD
-        // Swap WPLUME for PUSD using Rooster exactInputSingle
-        uint256 opsAmt = 2;
-        ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
-        manageLeafs[0] = leafs[1];
-        manageLeafs[1] = leafs[2];
+    //     // 3. Generate proofs for the actions you want to execute. Check USDAILeafs.json for the leafs operation order
+    //     // Approve PUSD
+    //     // Swap WPLUME for PUSD using Rooster exactInputSingle
+    //     uint256 opsAmt = 2;
+    //     ManageLeaf[] memory manageLeafs = new ManageLeaf[](opsAmt);
+    //     manageLeafs[0] = leafs[1];
+    //     manageLeafs[1] = leafs[2];
 
-        bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
+    //     bytes32[][] memory manageProofs = _getProofsUsingTree(manageLeafs, manageTree);
 
-        // 4. Prepare the action data
-       address[] memory targets = new address[](opsAmt);
-        targets[0] = WPLUME;
-        targets[1] = roosterRouter;
+    //     // 4. Prepare the action data
+    //    address[] memory targets = new address[](opsAmt);
+    //     targets[0] = WPLUME;
+    //     targets[1] = roosterRouter;
 
-        bytes[] memory targetData = new bytes[](opsAmt);
+    //     bytes[] memory targetData = new bytes[](opsAmt);
 
-        // console.log(IAlgebraPool(roosterPool).globalState().price);
+    //     // console.log(IAlgebraPool(roosterPool).globalState().price);
 
-        targetData[0] = abi.encodeWithSignature("approve(address,uint256)", roosterRouter, type(uint256).max);
-        targetData[1] = abi.encodeWithSignature("exactInputSingle((address,address,address,address,uint256,uint256,uint256,uint160))",
-            getAddress(sourceChain, "WPLUME"),        // tokenIn
-            getAddress(sourceChain, "PUSD"),         // tokenOut
-            address(0),                              // deployer (default is 0) https://docs.algebra.finance/algebra-integral-documentation/algebra-integral-technical-reference/integration-process/technical-guides/swaps/single-swaps
-            deployer.getAddress(UsdaiVaultName),    // recipient
-            block.timestamp + 1 hours,              // deadline
-            amountInput,                       // amountIn
-            0,                                      // amountOutMinimum
-            0);  
-        address[] memory decodersAndSanitizers = new address[](opsAmt);  
-        decodersAndSanitizers[0] = deployer.getAddress(UsdaiRoosterDecoderAndSanitizerName);
-        decodersAndSanitizers[1] = deployer.getAddress(UsdaiRoosterDecoderAndSanitizerName);
+    //     targetData[0] = abi.encodeWithSignature("approve(address,uint256)", roosterRouter, type(uint256).max);
+    //     targetData[1] = abi.encodeWithSignature("exactInputSingle((address,address,address,address,uint256,uint256,uint256,uint160))",
+    //         getAddress(sourceChain, "WPLUME"),        // tokenIn
+    //         getAddress(sourceChain, "PUSD"),         // tokenOut
+    //         address(0),                              // deployer (default is 0) https://docs.algebra.finance/algebra-integral-documentation/algebra-integral-technical-reference/integration-process/technical-guides/swaps/single-swaps
+    //         deployer.getAddress(UsdaiVaultName),    // recipient
+    //         block.timestamp + 1 hours,              // deadline
+    //         amountInput,                       // amountIn
+    //         0,                                      // amountOutMinimum
+    //         0);  
+    //     address[] memory decodersAndSanitizers = new address[](opsAmt);  
+    //     decodersAndSanitizers[0] = deployer.getAddress(UsdaiRoosterDecoderAndSanitizerName);
+    //     decodersAndSanitizers[1] = deployer.getAddress(UsdaiRoosterDecoderAndSanitizerName);
 
 // Morpho operation
         // // 1. Create merkle tree leaves for allowed actions
@@ -237,25 +237,25 @@ contract Strategist1 is Script, PlumeAddresses, MerkleTreeHelper, ContractNames 
         // uint256[] memory values = new uint256[](opsAmt);
         // extra
         // string memory filePath = "./leafs/Strategist1Leafs.json";
-        bytes32 merkleRoot = manageTree[manageTree.length - 1][0];
+        // bytes32 merkleRoot = manageTree[manageTree.length - 1][0];
 
-        _generateLeafs("./leafs/Strategist1Leafs.json", leafs, merkleRoot, manageTree);
+        // _generateLeafs("./leafs/Strategist1Leafs.json", leafs, merkleRoot, manageTree);
 
-        // try to less the var number to prevent "Stack too deep" error
-        manager.setManageRoot(0x28d2e2759dCB5CFda1c868Fee714B194c25a8dCB, merkleRoot);
-
-        vm.stopBroadcast();
-        // vm.startBroadcast(vm.envUint("PLUME_STRATEGIST_MERKL"));
-
-        // // 5. Execute the actions through the manager
-        // manager.manageVaultWithMerkleVerification(
-        //     manageProofs,
-        //     decodersAndSanitizers,
-        //     targets,
-        //     targetData,
-        //     values
-        // );
+        // // try to less the var number to prevent "Stack too deep" error
+        // manager.setManageRoot(0x28d2e2759dCB5CFda1c868Fee714B194c25a8dCB, merkleRoot);
 
         // vm.stopBroadcast();
+        vm.startBroadcast(vm.envUint("PLUME_STRATEGIST_MERKL"));
+
+        // 5. Execute the actions through the manager
+        manager.manageVaultWithMerkleVerification(
+            manageProofs,
+            decodersAndSanitizers,
+            targets,
+            targetData,
+            values
+        );
+
+        vm.stopBroadcast();
     }
 }
