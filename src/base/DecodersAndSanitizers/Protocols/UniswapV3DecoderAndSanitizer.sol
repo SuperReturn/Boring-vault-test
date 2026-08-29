@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {INonFungiblePositionManager} from "src/interfaces/RawDataDecoderAndSanitizerInterfaces.sol";
 import {BaseDecoderAndSanitizer, DecoderCustomTypes} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
-abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
+contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
     //============================== ERRORS ===============================
 
     error UniswapV3DecoderAndSanitizer__BadPathFormat();
@@ -15,10 +14,10 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
     /**
      * @notice The networks uniswapV3 nonfungible position manager.
      */
-    INonFungiblePositionManager internal immutable uniswapV3NonFungiblePositionManager;
+    // INonFungiblePositionManager internal immutable uniswapV3NonFungiblePositionManager;
 
-    constructor(address _uniswapV3NonFungiblePositionManager) {
-        uniswapV3NonFungiblePositionManager = INonFungiblePositionManager(_uniswapV3NonFungiblePositionManager);
+    constructor(address _boringVault) BaseDecoderAndSanitizer(_boringVault) {
+        // uniswapV3NonFungiblePositionManager = INonFungiblePositionManager(_uniswapV3NonFungiblePositionManager);
     }
 
     //============================== UNISWAP V3 ===============================
@@ -44,64 +43,64 @@ abstract contract UniswapV3DecoderAndSanitizer is BaseDecoderAndSanitizer {
         addressesFound = abi.encodePacked(addressesFound, params.recipient);
     }
 
-    function mint(DecoderCustomTypes.MintParams calldata params)
-        external
-        pure
-        virtual
-        returns (bytes memory addressesFound)
-    {
-        // Nothing to sanitize
-        // Return addresses found
-        addressesFound = abi.encodePacked(params.token0, params.token1, params.recipient);
-    }
+    // function mint(DecoderCustomTypes.MintParams calldata params)
+    //     external
+    //     pure
+    //     virtual
+    //     returns (bytes memory addressesFound)
+    // {
+    //     // Nothing to sanitize
+    //     // Return addresses found
+    //     addressesFound = abi.encodePacked(params.token0, params.token1, params.recipient);
+    // }
 
-    function increaseLiquidity(DecoderCustomTypes.IncreaseLiquidityParams calldata params)
-        external
-        view
-        virtual
-        returns (bytes memory addressesFound)
-    {
-        // Sanitize raw data
-        if (uniswapV3NonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
-            revert UniswapV3DecoderAndSanitizer__BadTokenId();
-        }
-        // Extract addresses from uniswapV3NonFungiblePositionManager.positions(params.tokenId).
-        (, address operator, address token0, address token1,,,,,,,,) =
-            uniswapV3NonFungiblePositionManager.positions(params.tokenId);
-        addressesFound = abi.encodePacked(operator, token0, token1);
-    }
+    // function increaseLiquidity(DecoderCustomTypes.IncreaseLiquidityParams calldata params)
+    //     external
+    //     view
+    //     virtual
+    //     returns (bytes memory addressesFound)
+    // {
+    //     // Sanitize raw data
+    //     if (uniswapV3NonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
+    //         revert UniswapV3DecoderAndSanitizer__BadTokenId();
+    //     }
+    //     // Extract addresses from uniswapV3NonFungiblePositionManager.positions(params.tokenId).
+    //     (, address operator, address token0, address token1,,,,,,,,) =
+    //         uniswapV3NonFungiblePositionManager.positions(params.tokenId);
+    //     addressesFound = abi.encodePacked(operator, token0, token1);
+    // }
 
-    function decreaseLiquidity(DecoderCustomTypes.DecreaseLiquidityParams calldata params)
-        external
-        view
-        virtual
-        returns (bytes memory addressesFound)
-    {
-        // Sanitize raw data
-        // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
-        // just for completeness.
-        if (uniswapV3NonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
-            revert UniswapV3DecoderAndSanitizer__BadTokenId();
-        }
+    // function decreaseLiquidity(DecoderCustomTypes.DecreaseLiquidityParams calldata params)
+    //     external
+    //     view
+    //     virtual
+    //     returns (bytes memory addressesFound)
+    // {
+    //     // Sanitize raw data
+    //     // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
+    //     // just for completeness.
+    //     if (uniswapV3NonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
+    //         revert UniswapV3DecoderAndSanitizer__BadTokenId();
+    //     }
 
-        // No addresses in data
-        return addressesFound;
-    }
+    //     // No addresses in data
+    //     return addressesFound;
+    // }
 
-    function collect(DecoderCustomTypes.CollectParams calldata params)
-        external
-        view
-        virtual
-        returns (bytes memory addressesFound)
-    {
-        // Sanitize raw data
-        // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
-        // just for completeness.
-        if (uniswapV3NonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
-            revert UniswapV3DecoderAndSanitizer__BadTokenId();
-        }
+    // function collect(DecoderCustomTypes.CollectParams calldata params)
+    //     external
+    //     view
+    //     virtual
+    //     returns (bytes memory addressesFound)
+    // {
+    //     // Sanitize raw data
+    //     // NOTE ownerOf check is done in PositionManager contract as well, but it is added here
+    //     // just for completeness.
+    //     if (uniswapV3NonFungiblePositionManager.ownerOf(params.tokenId) != boringVault) {
+    //         revert UniswapV3DecoderAndSanitizer__BadTokenId();
+    //     }
 
-        // Return addresses found
-        addressesFound = abi.encodePacked(params.recipient);
-    }
+    //     // Return addresses found
+    //     addressesFound = abi.encodePacked(params.recipient);
+    // }
 }

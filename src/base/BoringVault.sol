@@ -9,8 +9,14 @@ import {SafeTransferLib} from "@solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {BeforeTransferHook} from "src/interfaces/BeforeTransferHook.sol";
 import {Auth, Authority} from "@solmate/auth/Auth.sol";
+import {ERC20Upgradeable} from "@openzeppelin-contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
+
+contract BoringVault is Auth, Initializable, ERC20Upgradeable, UUPSUpgradeable, ERC721Holder, ERC1155Holder {
     using Address for address;
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -22,16 +28,43 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
      */
     BeforeTransferHook public hook;
 
+    uint8 private _decimals;
+
+    uint256 public maxTotalSupply = 10_000_000 * 1e6;
+
     //============================== EVENTS ===============================
 
     event Enter(address indexed from, address indexed asset, uint256 amount, address indexed to, uint256 shares);
     event Exit(address indexed to, address indexed asset, uint256 amount, address indexed from, uint256 shares);
 
-    //============================== CONSTRUCTOR ===============================
+    //============================== ERRORS ===============================
+    error NotSuperchainERC20Bridge();
 
-    constructor(address _owner, string memory _name, string memory _symbol, uint8 _decimals)
-        ERC20(_name, _symbol, _decimals)
-        Auth(_owner, Authority(address(0)))
+    //============================== CONSTRUCTOR ===============================
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() Auth(address(0), Authority(address(0))) {
+        _disableInitializers();
+    }
+
+    function initialize(
+        address _owner,
+        Authority _authority,
+        string memory _name,
+        string memory _symbol,
+        uint8 decimals_
+    ) public initializer {
+        __ERC20_init(_name, _symbol);
+        __UUPSUpgradeable_init();
+        owner = _owner;
+        authority = _authority;
+        _decimals = decimals_;
+        maxTotalSupply = 10_000_000 * 1e6;
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        requiresAuth
     {}
 
     //============================== MANAGE ===============================
@@ -75,6 +108,9 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
         external
         requiresAuth
     {
+        // Check if total supply would exceed max
+        require(totalSupply() + shareAmount <= maxTotalSupply, "Exceeds max total supply");
+
         // Transfer assets in
         if (assetAmount > 0) asset.safeTransferFrom(from, address(this), assetAmount);
 
@@ -115,23 +151,57 @@ contract BoringVault is ERC20, Auth, ERC721Holder, ERC1155Holder {
     }
 
     /**
-     * @notice Check if from addresses shares are locked, reverting if so.
+     * @notice Call `beforeTransferHook` passing in `from` `to`, and `msg.sender`.
      */
-    function _callBeforeTransfer(address from) internal view {
-        if (address(hook) != address(0)) hook.beforeTransfer(from);
+    function _callBeforeTransfer(address from, address to) internal view {
+        if (address(hook) != address(0)) hook.beforeTransfer(from, to, msg.sender);
     }
 
     function transfer(address to, uint256 amount) public override returns (bool) {
-        _callBeforeTransfer(msg.sender);
+        _callBeforeTransfer(msg.sender, to);
         return super.transfer(to, amount);
     }
 
     function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
-        _callBeforeTransfer(from);
+        _callBeforeTransfer(from, to);
         return super.transferFrom(from, to, amount);
+    }
+
+    /// @inheritdoc IERC165
+    function supportsInterface(bytes4 _interfaceId) public view virtual override (ERC1155Holder) returns (bool) {
+        return _interfaceId == type(IERC20).interfaceId
+            || _interfaceId == type(IERC165).interfaceId || super.supportsInterface(_interfaceId);
     }
 
     //============================== RECEIVE ===============================
 
     receive() external payable {}
+
+    function decimals() public view override returns (uint8) {
+        return _decimals;
+    }
+
+    /**
+     * @notice Sets the maximum total supply of shares.
+     * @dev Callable by authorized roles.
+     */
+    function setMaxTotalSupply(uint256 _maxTotalSupply) external requiresAuth {
+        maxTotalSupply = _maxTotalSupply;
+    }
+
+    /// @notice Sets the name and symbol of the token.
+    /// @dev Callable by authorized roles.
+    /// @param name_ The name of the token.
+    /// @param symbol_ The symbol of the token.
+    function setNameAndSymbol(string calldata name_, string calldata symbol_) external requiresAuth {
+        // get storage
+        bytes32 ERC20StorageLocation = 0x52c63247e1f47db19d5ce0460030c497f067ca4cebf71ba98eeadabe20bace00;
+        ERC20Upgradeable.ERC20Storage storage $;
+        assembly {
+            $.slot := ERC20StorageLocation
+        }
+        // set name and symbol in storage
+        $._name = name_;
+        $._symbol = symbol_;
+    }
 }

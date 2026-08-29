@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0;
 
 import { ERC20 } from "@solmate/tokens/ERC20.sol";
+import { AtomicRequest, AtomicQueue } from "./AtomicQueue.sol";
 
 interface IAtomicSolver {
     /**
@@ -14,6 +15,7 @@ interface IAtomicSolver {
      * @param want the ERC20 asset the solver must approve the queue for
      * @param assetsToOffer the amount of `offer` sent to the solver
      * @param assetsForWant the amount of `want` the solver must approve the queue for
+     * @param vault the address of the vault
      */
     function finishSolve(
         bytes calldata runData,
@@ -21,6 +23,17 @@ interface IAtomicSolver {
         ERC20 offer,
         ERC20 want,
         uint256 assetsToOffer,
-        uint256 assetsForWant
+        uint256 assetsForWant,
+        address vault
+    ) external;
+
+    /**
+     * @notice Approve the offer for the queue to spend
+     * @param queue the address of the queue
+     * @param request the atomic request to approve
+     */
+    function approveOfferForQueue(
+        address queue,
+        AtomicRequest calldata request
     ) external;
 }

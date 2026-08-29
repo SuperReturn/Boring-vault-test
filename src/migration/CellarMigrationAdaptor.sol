@@ -84,7 +84,7 @@ contract CellarMigrationAdaptor {
         assets = assets.mulDivDown(10 ** accountant.decimals(), rate);
 
         // Transfer shares to user.
-        boringVault.safeTransfer(receiver, assets);
+        ERC20(address(boringVault)).safeTransfer(receiver, assets);
     }
 
     /**

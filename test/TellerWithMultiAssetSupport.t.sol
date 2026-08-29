@@ -11,7 +11,10 @@ import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {IRateProvider} from "src/interfaces/IRateProvider.sol";
 import {ILiquidityPool} from "src/interfaces/IStaking.sol";
 import {RolesAuthority, Authority} from "@solmate/auth/authorities/RolesAuthority.sol";
-import {AtomicSolverV3, AtomicQueue} from "src/atomic-queue/AtomicSolverV3.sol";
+import {AtomicSolverV4, AtomicQueue} from "src/atomic-queue/AtomicSolverV4.sol";
+import {Deployer} from "src/helper/Deployer.sol";
+import {AtomicRequest} from "src/atomic-queue/AtomicQueue.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {Test, stdStorage, StdStorage, stdError, console} from "@forge-std/Test.sol";
 
@@ -36,7 +39,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
     ERC20 internal constant NATIVE_ERC20 = ERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     RolesAuthority public rolesAuthority;
     AtomicQueue public atomicQueue;
-    AtomicSolverV3 public atomicSolverV3;
+    AtomicSolverV4 public atomicSolverV4;
 
     address public solver = vm.addr(54);
 
@@ -46,10 +49,44 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         uint256 blockNumber = 19363419;
         _startFork(rpcKey, blockNumber);
 
-        boringVault = new BoringVault(address(this), "Boring Vault", "BV", 18);
+        Deployer deployer = new Deployer(address(this), Authority(address(0)));
+
+        // Deploy implementation
+        address implementation = deployer.deployContract(
+            "BoringVault-Implementation",
+            type(BoringVault).creationCode,
+            hex"",
+            0
+        );
+
+        // Prepare initializer data
+        bytes memory initializer = abi.encodeWithSelector(
+            BoringVault.initialize.selector,
+            address(this),  // owner
+            Authority(address(0)),  // authority
+            "Boring Vault", // name
+            "BV",  // symbol
+            18  // decimals
+        );
+
+        // Deploy proxy
+        bytes memory proxyCreationCode = abi.encodePacked(
+            type(ERC1967Proxy).creationCode,
+            abi.encode(implementation, initializer)
+        );
+        address proxy = deployer.deployContract(
+            "BoringVault",
+            proxyCreationCode,
+            hex"",
+            0
+        );
+
+        boringVault = BoringVault(payable(proxy));
+
+        boringVault.setMaxTotalSupply(1000000000000000000000000000000000000000);
 
         accountant = new AccountantWithRateProviders(
-            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0
+            address(this), address(boringVault), payout_address, 1e18, address(WETH), 1.001e4, 0.999e4, 1, 0, 0
         );
 
         teller =
@@ -57,8 +94,8 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
 
         rolesAuthority = new RolesAuthority(address(this), Authority(address(0)));
 
-        atomicQueue = new AtomicQueue();
-        atomicSolverV3 = new AtomicSolverV3(address(this), rolesAuthority);
+        atomicSolverV4 = new AtomicSolverV4(address(this), rolesAuthority);
+        atomicQueue = new AtomicQueue(address(this), rolesAuthority, address(accountant), address(atomicSolverV4));
 
         boringVault.setAuthority(rolesAuthority);
         accountant.setAuthority(rolesAuthority);
@@ -84,9 +121,9 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         rolesAuthority.setRoleCapability(
             SOLVER_ROLE, address(teller), TellerWithMultiAssetSupport.bulkWithdraw.selector, true
         );
-        rolesAuthority.setRoleCapability(QUEUE_ROLE, address(atomicSolverV3), AtomicSolverV3.finishSolve.selector, true);
+        rolesAuthority.setRoleCapability(QUEUE_ROLE, address(atomicSolverV4), AtomicSolverV4.finishSolve.selector, true);
         rolesAuthority.setRoleCapability(
-            CAN_SOLVE_ROLE, address(atomicSolverV3), AtomicSolverV3.redeemSolve.selector, true
+            CAN_SOLVE_ROLE, address(atomicSolverV4), AtomicSolverV4.redeemSolve.selector, true
         );
         rolesAuthority.setPublicCapability(address(teller), TellerWithMultiAssetSupport.deposit.selector, true);
         rolesAuthority.setPublicCapability(
@@ -96,7 +133,7 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         rolesAuthority.setUserRole(address(this), ADMIN_ROLE, true);
         rolesAuthority.setUserRole(address(teller), MINTER_ROLE, true);
         rolesAuthority.setUserRole(address(teller), BURNER_ROLE, true);
-        rolesAuthority.setUserRole(address(atomicSolverV3), SOLVER_ROLE, true);
+        rolesAuthority.setUserRole(address(atomicSolverV4), SOLVER_ROLE, true);
         rolesAuthority.setUserRole(address(atomicQueue), QUEUE_ROLE, true);
         rolesAuthority.setUserRole(solver, CAN_SOLVE_ROLE, true);
 
@@ -365,23 +402,27 @@ contract TellerWithMultiAssetSupportTest is Test, MainnetAddresses {
         uint256 shares = teller.deposit(WETH, wETH_amount, 0);
 
         // Share lock period is not set, so user can submit withdraw request immediately.
-        AtomicQueue.AtomicRequest memory req = AtomicQueue.AtomicRequest({
-            deadline: uint64(block.timestamp + 1 days),
-            atomicPrice: 1e18,
+        AtomicRequest memory req = AtomicRequest({
+            deadline: uint64(block.timestamp + 3 days),
+            creationTime: uint64(block.timestamp),
             offerAmount: uint96(shares),
-            inSolve: false
+            user: user,
+            offer: address(boringVault),
+            want: address(WETH)
         });
         boringVault.approve(address(atomicQueue), shares);
-        atomicQueue.updateAtomicRequest(boringVault, WETH, req);
+        atomicQueue.updateAtomicRequest(req);
         vm.stopPrank();
+
+        skip(1 days + 1); // Maturity time is 1 days, so skip 1 days + 1 to pass maturity time check.
 
         // Solver approves solver contract to spend enough assets to cover withdraw.
         vm.startPrank(solver);
-        WETH.safeApprove(address(atomicSolverV3), wETH_amount);
+        WETH.safeApprove(address(atomicSolverV4), wETH_amount);
         // Solve withdraw request.
         address[] memory users = new address[](1);
         users[0] = user;
-        atomicSolverV3.redeemSolve(atomicQueue, boringVault, WETH, users, 0, type(uint256).max, teller);
+        atomicSolverV4.redeemSolve(atomicQueue, 0, type(uint256).max, teller, req);
         vm.stopPrank();
     }
 

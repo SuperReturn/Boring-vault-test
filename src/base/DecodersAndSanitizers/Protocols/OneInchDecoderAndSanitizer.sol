@@ -1,32 +1,26 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
 import {BaseDecoderAndSanitizer, DecoderCustomTypes} from "src/base/DecodersAndSanitizers/BaseDecoderAndSanitizer.sol";
 
-abstract contract OneInchDecoderAndSanitizer is BaseDecoderAndSanitizer {
-    //============================== ERRORS ===============================
+contract OneInchDecoderAndSanitizer is BaseDecoderAndSanitizer {
+    address public immutable oneInchRouter;
 
-    error OneInchDecoderAndSanitizer__PermitNotSupported();
+    constructor(address _boringVault, address _oneInchRouter) BaseDecoderAndSanitizer(_boringVault) {
+        oneInchRouter = _oneInchRouter;
+    }
 
-    //============================== ONEINCH ===============================
-
+    /**
+     * @notice Decoder and sanitizer for 1Inch swap
+     * @param desc The swap description parameters
+     * @return addressesFound The addresses that need to be validated
+     */
     function swap(
         address executor,
         DecoderCustomTypes.SwapDescription calldata desc,
-        bytes calldata permit,
         bytes calldata
     ) external pure returns (bytes memory addressesFound) {
-        if (permit.length > 0) revert OneInchDecoderAndSanitizer__PermitNotSupported();
+        // Return all relevant addresses that need to be in the merkle tree
         addressesFound = abi.encodePacked(executor, desc.srcToken, desc.dstToken, desc.srcReceiver, desc.dstReceiver);
-    }
-
-    function uniswapV3Swap(uint256, uint256, uint256[] calldata pools)
-        external
-        pure
-        returns (bytes memory addressesFound)
-    {
-        for (uint256 i; i < pools.length; ++i) {
-            addressesFound = abi.encodePacked(addressesFound, uint160(pools[i]));
-        }
     }
 }
